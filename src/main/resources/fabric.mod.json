@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "steamify",
+  "version": "${version}",
+  "name": "Steamify",
+  "description": "Proper implementation of the Steam Controller in Minecraft",
+  "authors": ["rousev"],
+  "contact": { "sources": "https://github.com/rousevv/steamify" },
+  "license": "GPL-3.0-only",
+  "icon": "assets/steamify/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [{ "adapter": "kotlin", "value": "com.rousev.steamify.Steamify" }],
+    "modmenu": [{ "adapter": "kotlin", "value": "com.rousev.steamify.ModMenu" }]
+  },
+  "mixins": ["steamify.mixins.json", "steamify.compat.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": ">=0.165.2",
+    "fabric-language-kotlin": ">=1.14.2"
+  },
+  "conflicts": {
+    "controlify": "*"
+  }
+}

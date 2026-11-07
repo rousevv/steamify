@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "package": "com.rousev.steamify.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "ControllingKeyEntryMixin",
+    "ControllingScreenMixin",
+    "MalilibGamepadMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

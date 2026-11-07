@@ -1,0 +1,29 @@
+{
+  "required": true,
+  "package": "com.rousev.steamify.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "ChatComponentAccessor",
+    "ContainerScreenAccessor",
+    "FishingHookAccessor",
+    "GameModeAccessor",
+    "KeyBindsListMixin",
+    "KeyBindsScreenMixin",
+    "KeyEntryMixin",
+    "KeyMappingAccessor",
+    "KeyMappingPromptMixin",
+    "KeyboardHandlerInvoker",
+    "KeyboardHandlerMixin",
+    "KeyboardInputMixin",
+    "LocalPlayerSprintMixin",
+    "MouseHandlerMixin",
+    "OptionsScreenMixin",
+    "ResetAllMixin",
+    "SignEditScreenInvoker",
+    "SoundManagerMixin",
+    "TitleScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
