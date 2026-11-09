@@ -1,6 +1,7 @@
 package com.rousev.steamify.mixin;
 
 import com.rousev.steamify.Bindings;
+import com.rousev.steamify.PadButton;
 import com.google.common.collect.ImmutableList;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -28,7 +29,7 @@ abstract class ControllingKeyEntryMixin {
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void steamify$init(CallbackInfo ci) {
-        steamify$pad = Button.builder(Bindings.label(key), b -> Bindings.listen(key)).bounds(0, 0, 60, 20).build();
+        steamify$pad = new PadButton(key);
     }
 
     @Inject(method = "extractContent", at = @At("TAIL"))

@@ -18,9 +18,11 @@
     "LocalPlayerSprintMixin",
     "MouseHandlerMixin",
     "OptionsScreenMixin",
+    "PauseScreenMixin",
     "ResetAllMixin",
     "SignEditScreenInvoker",
     "SoundManagerMixin",
+    "TextInputManagerAccessor",
     "TitleScreenMixin"
   ],
   "injectors": {

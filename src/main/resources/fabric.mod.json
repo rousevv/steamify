@@ -21,7 +21,7 @@
     "fabric-api": ">=0.165.2",
     "fabric-language-kotlin": ">=1.14.2"
   },
-  "conflicts": {
+  "breaks": {
     "controlify": "*"
   }
 }

@@ -17,10 +17,15 @@ import com.rousev.steamify.mixin.KeyMappingAccessor
 import org.lwjgl.BufferUtils
 import org.lwjgl.sdl.SDLEvents.SDL_AddEventWatch
 import org.lwjgl.sdl.SDLEvents.SDL_EVENT_GAMEPAD_SENSOR_UPDATE
+import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_CANCELED
+import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_DOWN
+import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_MOTION
+import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_UP
 import org.lwjgl.sdl.SDLGamepad.*
 import org.lwjgl.sdl.SDLInit.SDL_INIT_GAMEPAD
 import org.lwjgl.sdl.SDLInit.SDL_InitSubSystem
 import org.lwjgl.sdl.SDLMouse.SDL_WarpMouseInWindow
+import org.lwjgl.sdl.SDLSensor.SDL_SENSOR_ACCEL
 import org.lwjgl.sdl.SDLSensor.SDL_SENSOR_GYRO
 import org.lwjgl.sdl.SDLStdinc.SDL_free
 import org.lwjgl.sdl.SDL_Event
@@ -72,12 +77,13 @@ object Steamify : ClientModInitializer {
     private const val GYRO_STILL_SECS = 0.5
     private const val GYRO_CAL_TAU = 2.0
     private const val PAD_DEG_PER_WIDTH = 120.0
-    private const val PAD_FRICTION = 6.0 // trackball velocity decay per second, higher stops sooner
+    private const val PAD_FRICTION = 6.0 // trackball velocity decay per second at 100%, higher stops sooner
     private const val PAD_CURSOR_PX_PER_WIDTH = 900.0
     private const val STICK_CURSOR_PX_PER_SEC = 1200.0
     private const val SCROLL_STEP = 0.12f // left pad travel per hotbar slot
     private const val TRIGGER_THRESHOLD = 0.5f
     private const val TRIGGER_RELEASE = 0.4f
+    private const val EDGE_HYSTERESIS = 5 // percent
     // Thumb contact point shifts as it lands and rolls off; motion this close to touch/lift is noise
     private const val TOUCH_SETTLE_NS = 40_000_000L
 
@@ -120,6 +126,9 @@ object Steamify : ClientModInitializer {
         var vy = 0.0
         val pending = ArrayDeque<Pair<Long, Float>>() // scroll motion held back until it's clearly not a lift
         var scrollAcc = 0f
+        val swipeQueue = ArrayDeque<Triple<Long, Float, Float>>() // same, for swipe inputs
+        var swipeX = 0f
+        var swipeY = 0f
     }
 
     internal val leftPad = Touch(0)
@@ -140,17 +149,48 @@ object Steamify : ClientModInitializer {
     // Field, not a local: LWJGL frees the native trampoline if this gets collected
     private val sensorWatch = SDL_EventFilter.create { _, ptr ->
         val e = SDL_Event.create(ptr)
-        if (e.type() == SDL_EVENT_GAMEPAD_SENSOR_UPDATE) {
-            val s = e.gsensor()
-            if (s.sensor() == SDL_SENSOR_GYRO) gyroSample(s.data(0), s.data(1), s.data(2), s.sensor_timestamp())
+        when (e.type()) {
+            SDL_EVENT_GAMEPAD_SENSOR_UPDATE -> {
+                val s = e.gsensor()
+                // Only the controller in use: another one lying around would otherwise turn the camera
+                if (s.which() == padId) when (s.sensor()) {
+                    SDL_SENSOR_GYRO -> gyroSample(s.data(0), s.data(1), s.data(2), s.sensor_timestamp())
+                    SDL_SENSOR_ACCEL -> accelSample(s.data(0), s.data(1), s.data(2))
+                }
+            }
+            SDL_EVENT_FINGER_DOWN, SDL_EVENT_FINGER_MOTION, SDL_EVENT_FINGER_UP, SDL_EVENT_FINGER_CANCELED -> {
+                val f = e.tfinger()
+                Keyboard.touch(e.type(), f.fingerID(), f.x(), f.y())
+            }
         }
         true
     }
 
-    /** Press state of one binding. armed = a combo is held but still inside the window where it could grow. */
+    /**
+     * Press state of one binding. armed = a combo is held but still inside the window where it could grow.
+     * tap = evaluate saw a quick tap this frame. until = a tap keeps it down till then.
+     * queued = a tap asked for from outside, like an action set's enter action.
+     */
     private open class Trigger {
         var down = false
         var armed = false
+        var tap = false
+        var until = 0L
+        var queued = false
+    }
+
+    /** One combo's press history, for the gestures other than a regular press. Shared by every bind on that combo. */
+    private class Track {
+        var stamp = 0L // frame it was last updated, so a combo bound twice updates once
+        var held = false
+        var since = 0L
+        var count = 0 // 2 on the second press of a double press
+        var upAt = 0L
+        var spoiled = false // a bigger combo took it over, or it was swallowed: no release taps
+        var shortDue = false // short press waiting to see whether a double press follows
+        var start = false
+        var release = false
+        var short = false
     }
 
     private class Bind(val combos: () -> List<Combo>, val onChange: (Boolean) -> Unit) : Trigger()
@@ -234,7 +274,7 @@ object Steamify : ClientModInitializer {
     private fun updateLatch(inMenu: Boolean) {
         for (i in latch.indices) if (!held[i]) latch[i] = 0
         for (m in mc.options.keyMappings) {
-            for (c in if (inMenu) Bindings.of(m) else Bindings.effective(m)) {
+            for (c in if (inMenu) Bindings.combos(m) else Bindings.effective(m).map { it.combo }) {
                 if (c.size > 1 && c.all(::down)) c.forEach { latch[it] = maxOf(latch[it], c.size) }
             }
         }
@@ -247,31 +287,162 @@ object Steamify : ClientModInitializer {
     private const val COMBO_WINDOW_NS = 150_000_000L
     private val pressedAt = LongArray(Bindings.INPUT_COUNT)
 
-    // tapOnly: fire as a tap on release, never while held. For buttons used as a modifier (Steam), where
-    // waiting a fixed window still misfires if the second button of the combo comes slowly
-    private fun evaluate(t: Trigger, combos: List<Combo>, all: List<Combo>, now: Long, tapOnly: Boolean = false, apply: (Boolean) -> Unit) {
+    // Regular presses. Returns whether the binding should be down; a quick tap sets t.tap instead
+    private fun evaluate(t: Trigger, combos: List<Combo>, all: List<Combo>, now: Long): Boolean {
         var ready = false
         var pending = false
         var suppressed = false
+        t.tap = false
         for (c in combos) {
             if (!c.all(::down)) continue
             if (c.any { latch[it] > c.size }) { suppressed = true; continue }
             val growable = all.any { it.size > c.size && it.containsAll(c) }
-            if (!tapOnly && (!growable || now - c.maxOf { pressedAt[it] } >= COMBO_WINDOW_NS)) ready = true else pending = true
+            if (!growable || now - c.maxOf { pressedAt[it] } >= COMBO_WINDOW_NS) ready = true else pending = true
         }
-        when {
-            ready -> {
-                t.armed = false
-                if (!t.down) { t.down = true; apply(true) }
-            }
-            pending -> t.armed = true
+        return when {
+            ready -> { t.armed = false; true }
+            pending -> { t.armed = true; t.down }
             else -> {
                 if (suppressed) t.armed = false
-                if (t.down) { t.down = false; apply(false) }
                 // Let go inside the window and no bigger combo claimed it: that was a quick tap
-                else if (t.armed) { t.armed = false; apply(true); apply(false) }
+                if (t.armed && !t.down) t.tap = true
+                t.armed = false
+                false
             }
         }
+    }
+
+    // Taps stay down this long: sprint, jump and sneak are read once per game tick, and would miss a same-frame press and release
+    private const val TAP_NS = 60_000_000L
+
+    private fun drive(t: Trigger, want: Boolean, tap: Boolean, now: Long, apply: (Boolean) -> Unit) {
+        if (tap && !t.down) t.until = now + TAP_NS
+        val on = want || now < t.until
+        if (on != t.down) { t.down = on; apply(on) }
+    }
+
+    private val tracks = HashMap<Combo, Track>()
+
+    private fun track(c: Combo, now: Long, hasDouble: Boolean): Track {
+        val g = tracks.getOrPut(c, ::Track)
+        if (g.stamp == now) return g
+        g.stamp = now
+        val longNs = Settings[Tune.LONG_PRESS] * 1_000_000L
+        val doubleNs = Settings[Tune.DOUBLE_PRESS] * 1_000_000L
+        val h = c.all(::down)
+        g.start = h && !g.held
+        g.release = false
+        g.short = false
+        if (g.start) {
+            g.count = if (g.count == 1 && now - g.upAt < doubleNs) 2 else 1
+            g.since = now
+            g.spoiled = false
+            g.shortDue = false
+        }
+        if (h && c.any { latch[it] > c.size } || c.any { swallowed[it] }) g.spoiled = true
+        if (!h && g.held) {
+            g.upAt = now
+            g.release = !g.spoiled
+            g.shortDue = !g.spoiled && g.count == 1 && now - g.since < longNs
+        }
+        // With a double press on the same combo, a short press waits to see that no second press is coming
+        if (g.shortDue && (!hasDouble || now - g.upAt >= doubleNs)) {
+            g.short = true
+            g.shortDue = false
+        }
+        g.held = h
+        return g
+    }
+
+    // Gestures that hold the binding down, and those that tap it
+    private fun Track.holds(gesture: Gesture, now: Long) = held && !spoiled && when (gesture) {
+        Gesture.LONG -> count == 1 && now - since >= Settings[Tune.LONG_PRESS] * 1_000_000L
+        Gesture.DOUBLE -> count == 2
+        else -> false
+    }
+
+    private fun Track.taps(gesture: Gesture) = when (gesture) {
+        Gesture.SHORT -> short
+        Gesture.START -> start
+        Gesture.RELEASE -> release
+        else -> false
+    }
+
+    // Trackpad Hotbar is held: the left pad picks hotbar slots
+    private var hotbarPadOn = false
+
+    // Mapping names the active action sets hold down
+    private var heldBySets: Set<String> = emptySet()
+
+    // Game binds for these mappings: regular presses, gestures, swipes, and what action sets hold or tap
+    private fun driveMappings(mappings: List<KeyMapping>, now: Long) {
+        val presses = mappings.associateWith { Bindings.effective(it) }
+        // Swipe combos never sit held, so they can't make a smaller combo wait to see if it grows
+        val all = presses.values.flatMap { ps -> ps.map { it.combo }.filterNot { c -> c.any(Bindings::isSwipe) } }
+        val doubles = presses.values.flatMap { ps -> ps.filter { it.gesture == Gesture.DOUBLE }.map { it.combo } }.toSet()
+        for ((m, ps) in presses) {
+            val setHeld = m.name in heldBySets
+            if (ps.isEmpty() && m !in gameDown && !setHeld) continue
+            val t = gameDown.getOrPut(m, ::Trigger)
+            var want = evaluate(t, ps.filter { it.gesture == Gesture.REGULAR }.map { it.combo }, all, now) || setHeld
+            var tap = t.tap || t.queued
+            t.queued = false
+            for (p in ps) {
+                if (p.gesture == Gesture.REGULAR) continue
+                val g = track(p.combo, now, p.combo in doubles)
+                want = want || g.holds(p.gesture, now)
+                tap = tap || g.taps(p.gesture)
+            }
+            drive(t, want, tap, now) { fire(m, it) }
+            // A swipe fires once per pulse, and a fast swipe can bring several in one frame
+            for (p in ps) {
+                val s = p.combo.firstOrNull(Bindings::isSwipe) ?: continue
+                val n = pulses[s]
+                if (n == 0 || !p.combo.all { it == s || down(it) }) continue
+                // Already down (held by another bind, a set's Hold While On, or a tap): extra presses only,
+                // letting go would end that hold
+                repeat(n) { fire(m, true) }
+                if (!t.down) fire(m, false)
+                feedback(Haptic.HOTBAR, left = s < Bindings.swipe(1, 0), right = s >= Bindings.swipe(1, 0))
+            }
+        }
+    }
+
+    /** "world:<name>" in singleplayer, "server:<address>" in multiplayer, null outside a world. */
+    internal fun place(): String? {
+        if (mc.level == null) return null
+        if (mc.isLocalServer) return mc.singleplayerServer?.let { "world:" + it.worldData.levelName }
+        return mc.currentServer?.let { "server:" + it.ip }
+    }
+
+    private fun configuring(screen: Screen?) = screen is KeyBindsScreen || screen is BindScreen || screen is InputPickerScreen ||
+        screen is ActionSetsScreen || screen is ActionSetScreen || screen is SetTunesScreen || screen is ActionPickerScreen ||
+        screen is ProfilesScreen
+
+    // Inputs held when a capture started, cleared as they're let go
+    private val heldAtCapture = BooleanArray(Bindings.INPUT_COUNT)
+    private var captureWas = false
+
+    // A thumb already on a pad when a capture starts (it just clicked the button with the right pad) or a stick
+    // already pushed mustn't record edges and swipes as it moves on. It counts again once let go
+    private fun incidental(i: Int): Boolean {
+        val pad = when {
+            i == Bindings.L_PAD_TOUCH || i == Bindings.R_PAD_TOUCH -> i - Bindings.L_PAD_TOUCH
+            Bindings.isSwipe(i) -> (i - Bindings.SWIPES) / 4
+            i >= Bindings.EDGES -> {
+                val source = (i - Bindings.EDGES) / 5
+                if (source < 2) return heldAtCapture[Bindings.edge(source, Bindings.OUTER)]
+                source - 2
+            }
+            else -> return false
+        }
+        return heldAtCapture[Bindings.L_PAD_TOUCH + pad]
+    }
+
+    /** Taps a mapping by name, for action set enter and exit actions. */
+    private fun queueTap(name: String) {
+        val m = mc.options.keyMappings.firstOrNull { it.name == name } ?: return
+        gameDown.getOrPut(m, ::Trigger).queued = true
     }
 
     private fun fire(m: KeyMapping, down: Boolean) {
@@ -283,6 +454,11 @@ object Steamify : ClientModInitializer {
             Bindings.debugMenu -> if (down) mc.gui.setScreen(DebugMenuScreen())
             Bindings.minimize -> if (down) SDL_MinimizeWindow(window())
             Bindings.debugOverlay -> if (down) mc.debugEntries.toggleDebugOverlay()
+            Bindings.hotbarPad -> hotbarPadOn = down
+            // Real wheel notches through MC's mouse handler, so zoom mods and anything else listening see a mouse
+            Bindings.scrollUp -> if (down) scroll(1.0)
+            Bindings.scrollDown -> if (down) scroll(-1.0)
+            Bindings.dropStack -> mc.player?.let { p -> if (down && !p.isSpectator) mc.gameMode?.dropItem(p, true) }
             else -> {
                 val key = InputConstants.getKey(m.saveString())
                 if (key != InputConstants.UNKNOWN) press(key, down)
@@ -315,6 +491,7 @@ object Steamify : ClientModInitializer {
     private var aKey: InputConstants.Key? = null
     private var xClicked = false // X sent a shift-click outside inventories, so its release must follow
     private var padPressed = false // left pad click went to MenuPad, so its release must not click
+    private var ltPad = false // same for LT
     private val menu = listOf(
         Bind(one(SDL_GAMEPAD_BUTTON_SOUTH, Bindings.RT)) {
             if (it) {
@@ -346,7 +523,14 @@ object Steamify : ClientModInitializer {
                 else -> press(leftClick, it)
             }
         },
-        Bind(one(Bindings.LT)) { press(rightClick, it) },
+        // A button picked with the left pad gets its right-click action, like A presses it
+        Bind(one(Bindings.LT)) {
+            when {
+                it && MenuPad.activateSecondary() -> ltPad = true
+                !it && ltPad -> ltPad = false
+                else -> press(rightClick, it)
+            }
+        },
         // On inventory slots X is QuickMove (drag shift-click, move all of a kind). Anywhere else it's a shift-click,
         // which the recipe book takes as "fill with full stacks"
         Bind(one(SDL_GAMEPAD_BUTTON_WEST)) {
@@ -366,10 +550,10 @@ object Steamify : ClientModInitializer {
         Bind(one(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) { if (it) scroll(1.0) },
         Bind(one(SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) { if (it) scroll(-1.0) },
         // Whatever opened the inventory closes it; container screens match keyInventory themselves
-        Bind({ Bindings.of(mc.options.keyInventory) }) { press(mappedKey(mc.options.keyInventory), it) },
+        Bind({ Bindings.combos(mc.options.keyInventory) }) { press(mappedKey(mc.options.keyInventory), it) },
         // Same combo that opened the switcher closes it without changing mode
-        Bind({ Bindings.of(Bindings.gameMode) }) { if (it && mc.gui.screen() is GameModeSwitcherScreen) mc.gui.setScreen(null) },
-        Bind({ Bindings.of(Bindings.minimize) }) { if (it) SDL_MinimizeWindow(window()) },
+        Bind({ Bindings.combos(Bindings.gameMode) }) { if (it && mc.gui.screen() is GameModeSwitcherScreen) mc.gui.setScreen(null) },
+        Bind({ Bindings.combos(Bindings.minimize) }) { if (it) SDL_MinimizeWindow(window()) },
     )
 
     private val dpad = intArrayOf(SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
@@ -402,7 +586,7 @@ object Steamify : ClientModInitializer {
         Bindings.init()
         ActionSets.load()
         Settings.load()
-        Settings.gyroBias?.let(::applyGyroBias)
+        Profiles.load()
         // Same as losing focus: hand the controller back to the desktop now, not after the firmware's timeout
         // A corner grid stands in for the strip, the rest of the HUD (health, food, xp) stays
         HudElementRegistry.replaceElement(VanillaHudElements.HOTBAR) { vanilla ->
@@ -584,6 +768,7 @@ object Steamify : ClientModInitializer {
     /** Render thread, once per frame, before MC applies accumulated mouse movement. */
     @JvmStatic
     fun frame() {
+        Keyboard.endFrame()
         val now = System.nanoTime()
         val dt = ((now - lastNanos) / 1e9).coerceAtMost(0.1)
         lastNanos = now
@@ -601,6 +786,9 @@ object Steamify : ClientModInitializer {
             return
         }
 
+        pulses.fill(0)
+        swipes(leftPad, 0, now)
+        swipes(rightPad, 1, now)
         for (i in 0 until Bindings.INPUT_COUNT) {
             val was = held[i]
             held[i] = isDown(i)
@@ -617,20 +805,29 @@ object Steamify : ClientModInitializer {
         askToCalibrate(mc.gui.screen())
         val screen = mc.gui.screen()
         val inMenu = screen != null
-        if (inMenu != wasInMenu) {
+        val switched = inMenu != wasInMenu
+        if (switched) {
             // Release what the old layout held, or e.g. attack stays down after opening a menu
             gameDown.forEach { (m, t) -> if (t.down) fire(m, false) }
             gameDown.clear()
-            menu.forEach { if (it.down) it.onChange(false); it.down = false; it.armed = false }
+            tracks.clear()
+            menu.forEach { if (it.down) it.onChange(false); it.down = false; it.armed = false; it.until = 0L }
             // A button still held from the switch must not fire again in the new layout,
             // e.g. Start opens pause then would close it the next frame
             swallowHeld()
             wasInMenu = inMenu
         }
 
+        val capturingNow = Bindings.listening != null || ActionSets.capturing != null
+        if (capturingNow && !captureWas) held.copyInto(heldAtCapture)
+        captureWas = capturingNow
+        for (i in heldAtCapture.indices) if (!held[i]) heldAtCapture[i] = false
+
         if (Bindings.listening != null) {
-            if (screen is KeyBindsScreen) {
-                for (i in 0 until Bindings.INPUT_COUNT) if (down(i) && i !in Bindings.CAPSENSE) Bindings.press(i)
+            if (screen is KeyBindsScreen || screen is BindScreen) {
+                for (i in 0 until Bindings.INPUT_COUNT) {
+                    if ((down(i) || pulses[i] > 0) && i !in Bindings.CAPSENSE && !incidental(i)) Bindings.press(i)
+                }
                 // Collected buttons must not also click whatever the cursor is on
                 swallowHeld()
                 if (!Bindings.tick(now) { held[it] }) swallowHeld()
@@ -639,35 +836,44 @@ object Steamify : ClientModInitializer {
 
         // Same for an action set trigger being captured. Touch sensors count here, they're what grips are
         if (ActionSets.capturing != null) {
-            if (screen is ActionSetScreen && ActionSets.captureTick(now, { pressedNow[it] }, { held[it] })) swallowHeld()
+            if (screen is ActionSetScreen && ActionSets.captureTick(now, { pressedNow[it] && !incidental(it) }, { held[it] })) swallowHeld()
             else if (screen !is ActionSetScreen) ActionSets.cancelCapture()
         }
-        if (ActionSets.editing != null && screen !is KeyBindsScreen) ActionSets.editing = null
+        if (ActionSets.editing != null && screen !is KeyBindsScreen && screen !is BindScreen && screen !is InputPickerScreen) ActionSets.editing = null
 
         // The on-screen keyboard takes over every button while it's up. Whatever is held when it opens or
         // closes (B that hid it, A that focused the box) must not leak into the menu layout
         val kb = inMenu && Keyboard.visible(screen)
         if (kb != keyboardWasUp) {
-            menu.forEach { if (it.down) it.onChange(false); it.down = false; it.armed = false }
+            menu.forEach { if (it.down) it.onChange(false); it.down = false; it.armed = false; it.until = 0L }
             swallowHeld()
             keyboardWasUp = kb
         }
 
-        if (!inMenu) {
+        if (!kb) {
             // A different layer of binds. Binds the new layer still has on the held buttons stay down (a drawn
-            // bow keeps drawing); the rest let go, and their buttons wait for a new press
+            // bow keeps drawing); the rest let go, and their buttons wait for a new press.
+            // Steamify's own settings screens keep menu sets off, or a set's trigger couldn't be rebound there
             val item = mc.player?.mainHandItem?.takeUnless { it.isEmpty }?.let { BuiltInRegistries.ITEM.getKey(it.item).toString() }
-            if (ActionSets.update({ held[it] }, item)) {
+            val before = ActionSets.update({ held[it] }, item, inMenu, place(), paused = configuring(screen))
+            heldBySets = ActionSets.active.mapNotNullTo(HashSet()) { it.whileOn }
+            if (before != null) {
                 val kept = HashSet<Int>()
                 val it = gameDown.entries.iterator()
                 while (it.hasNext()) {
                     val (m, t) = it.next()
-                    val still = if (t.down) Bindings.effective(m).firstOrNull { c -> c.all { i -> held[i] } } else null
-                    if (still != null) { kept += still; continue }
+                    val still = if (t.down) Bindings.effective(m).firstOrNull { p -> p.combo.all { i -> held[i] } } else null
+                    if (still != null) { kept += still.combo; continue }
+                    if (t.down && m.name in heldBySets) continue
                     if (t.down) fire(m, false)
                     it.remove()
                 }
                 for (i in held.indices) if (held[i] && i !in kept) swallowed[i] = true
+                // In-game sets go off while a menu is open and back on after. That's not the player switching
+                // them, so pausing or opening the inventory doesn't run their enter and exit actions
+                val quiet = { set: ActionSet -> switched && set.where == ActionSet.Where.GAME }
+                for (s in before) if (s !in ActionSets.active && !quiet(s)) s.onExit?.let(::queueTap)
+                for (s in ActionSets.active) if (s !in before && !quiet(s)) s.onEnter?.let(::queueTap)
             }
             // Set triggers are modifiers only
             for (i in 0 until Bindings.INPUT_COUNT) if (held[i] && ActionSets.isTrigger(i)) swallowed[i] = true
@@ -676,17 +882,15 @@ object Steamify : ClientModInitializer {
         if (kb) {
             // Keyboard.update runs after the pads are read, below
         } else if (inMenu) {
-            val all = menu.flatMap { it.combos() }
-            for (b in menu) evaluate(b, b.combos(), all, now, apply = b.onChange)
+            // Menu sets' binds win over the built-in menu layout on the buttons they use
+            val setMaps = ActionSets.overridden()
+            val claimed = ActionSets.active.flatMapTo(HashSet()) { s -> s.binds.values.flatten().flatMap { it.combo } }
+            val combos = { b: Bind -> b.combos().filter { c -> c.none { it in claimed } } }
+            val all = menu.flatMap(combos)
+            for (b in menu) drive(b, evaluate(b, combos(b), all, now), b.tap, now, b.onChange)
             if (Bindings.listening == null && ActionSets.capturing == null) navigate(screen, now) // its arrow keys would end a capture
-        } else {
-            val all = mc.options.keyMappings.flatMap { Bindings.effective(it) }
-            for (m in mc.options.keyMappings) {
-                val combos = Bindings.effective(m)
-                if (combos.isEmpty()) continue
-                evaluate(gameDown.getOrPut(m, ::Trigger), combos, all, now, tapOnly = m === Bindings.debugOverlay) { fire(m, it) }
-            }
-        }
+            driveMappings(mc.options.keyMappings.filter { it.name in setMaps || it.name in heldBySets || it in gameDown }, now)
+        } else driveMappings(mc.options.keyMappings.toList(), now)
 
         readTouch(leftPad, now, dt)
         readTouch(rightPad, now, dt)
@@ -764,7 +968,7 @@ object Steamify : ClientModInitializer {
         if (lookTesting) return lookTest.look(yaw, pitch)
         if (yaw != 0.0 || pitch != 0.0) mc.player?.turn(yaw / 0.15, pitch / 0.15)
 
-        HotbarPad.update(now)
+        if (hotbarPadOn) HotbarPad.update(now) else HotbarPad.idle()
     }
 
     // Runs inside SDL_PumpEvents on the render thread, once per gyro report
@@ -795,7 +999,7 @@ object Steamify : ClientModInitializer {
         }
 
         // SDL axes: +Y up, +X right, rates counter-clockwise. Yaw left is +Y, tilting the front up is +X
-        gyroSmooth.apply(-(rawY - biasY), -(rawX - biasX), dt)
+        gyroSmooth.apply(-yawRate(rawY - biasY, rawZ - biasZ), -(rawX - biasX), dt)
         if (!gyroActive) return
         synchronized(gyroLock) {
             // Camera degrees per degree of controller rotation, stored in tenths
@@ -816,6 +1020,37 @@ object Steamify : ClientModInitializer {
     fun applyGyroBias(b: DoubleArray) {
         biasX = b[0]; biasY = b[1]; biasZ = b[2]
         stillFor = 0.0
+    }
+
+    // Which way is down, in controller axes, from the accelerometer (m/s², +Y up). Averaged so a swing doesn't throw it
+    private var gravX = 0.0
+    private var gravY = 0.0
+    private var gravZ = 0.0
+    private var hasGravity = false
+    private const val GRAVITY_KEEP = 0.95 // per report, at about 1000 reports a second: settles in a few dozen ms
+
+    private fun accelSample(ax: Float, ay: Float, az: Float) {
+        if (!hasGravity) {
+            gravX = -ax.toDouble(); gravY = -ay.toDouble(); gravZ = -az.toDouble()
+            hasGravity = true
+            return
+        }
+        gravX = gravX * GRAVITY_KEEP - ax * (1 - GRAVITY_KEEP)
+        gravY = gravY * GRAVITY_KEEP - ay * (1 - GRAVITY_KEEP)
+        gravZ = gravZ * GRAVITY_KEEP - az * (1 - GRAVITY_KEEP)
+    }
+
+    /**
+     * Turning rate (deg/s, SDL's sign). Player space, as Steam Input and Jibb Smart's GyroWiki do it: left and right
+     * follow the horizon however the controller is tilted, so both yawing it and rolling it turn. Without an
+     * accelerometer (or with it off), only the controller's own yaw axis turns.
+     */
+    private fun yawRate(gy: Double, gz: Double): Double {
+        val len = hypot(hypot(gravX, gravY), gravZ)
+        if (!Settings[Flag.PLAYER_SPACE] || !hasGravity || len < 1.0) return gy
+        val world = -(gravY / len * gy + gravZ / len * gz)
+        // Relaxed: up to sqrt(2) of the axis-aligned part, never more than the full yaw-and-roll rotation
+        return sign(world) * minOf(abs(world) * 1.41, hypot(gy, gz))
     }
 
     fun hasGyro() = pad != 0L && SDL_GamepadHasSensor(pad, SDL_SENSOR_GYRO)
@@ -895,6 +1130,7 @@ object Steamify : ClientModInitializer {
 
     // Steam reads the controller itself and runs its desktop layout on top of ours
     private val steamToast = SystemToast.SystemToastId(10_000L)
+    private val profileToast = SystemToast.SystemToastId(3_000L)
     private val steamExes = setOf("steam", "steam.exe", "steam_osx")
     private var steamCheckAt = 0L
     private var steamWarned = false
@@ -914,7 +1150,7 @@ object Steamify : ClientModInitializer {
                 if (running && !steamWarned) {
                     log.warn("Steam is running: its controller layout may send inputs on top of Steamify's. Close Steam to avoid double inputs")
                     SystemToast.addOrUpdate(mc.gui.toastManager(), steamToast,
-                        Component.literal("Steam is running"), Component.literal("May cause double inputs. Close Steam."))
+                        Component.translatable("steamify.steam.toast"), Component.translatable("steamify.steam.toast.body"))
                 }
                 // Reset once Steam closes so reopening it warns again
                 steamWarned = running
@@ -927,10 +1163,15 @@ object Steamify : ClientModInitializer {
 
     // Closing the gamepad stops SDL resending "lizard mode off" every 3s, so the controller's firmware turns
     // its desktop mouse/keyboard back on while MC is in the background. Nothing in MC reacts to it meanwhile
-    private fun closePad() {
+    // Let go of everything the controller held, before it stops being the one in use
+    private fun releaseAll() {
         gameDown.forEach { (m, t) -> if (t.down) fire(m, false) }
         gameDown.clear()
-        menu.forEach { if (it.down) it.onChange(false); it.down = false; it.armed = false }
+        menu.forEach { if (it.down) it.onChange(false); it.down = false; it.armed = false; it.until = 0L }
+    }
+
+    private fun closePad() {
+        releaseAll()
         SDL_CloseGamepad(pad)
         pad = 0L
         // The firmware's own watchdog takes seconds to bring desktop mode back; flip it now instead.
@@ -942,6 +1183,7 @@ object Steamify : ClientModInitializer {
 
     private fun connect(now: Long): Boolean {
         if (!mc.isWindowActive) {
+            closeOthers()
             if (pad != 0L) {
                 closePad()
                 releasedForFocus = true
@@ -950,27 +1192,78 @@ object Steamify : ClientModInitializer {
             }
             return false
         }
-        if (pad != 0L && SDL_GamepadConnected(pad)) {
-            checkSteam(now)
-            Battery.poll(pad, now)
-            return true
-        }
-        if (pad != 0L) {
+        if (pad != 0L && !SDL_GamepadConnected(pad)) {
             closePad()
             Battery.disconnected()
+            Profiles.disconnected()
             log.info("Controller disconnected")
         }
-        if (now < nextScan) return false
-        nextScan = now + 1_000_000_000L
-        val ids = SDL_GetGamepads() ?: return false
+        if (now >= nextScan) {
+            nextScan = now + 1_000_000_000L
+            scan()
+        }
+        // The controller in use is the one last touched: a press on another one switches to it
+        if (pad == 0L) others.entries.firstOrNull()?.let { (id, h) -> others.remove(id); return activate(h) }
+        others.entries.firstOrNull { (_, h) -> touched(h) }?.let { (id, h) ->
+            others.remove(id)
+            releaseAll()
+            hid.takeIf { it != 0L }?.let(::SDL_hid_close)
+            hid = 0L
+            SDL_SetGamepadSensorEnabled(pad, SDL_SENSOR_GYRO, false)
+            SDL_SetGamepadSensorEnabled(pad, SDL_SENSOR_ACCEL, false)
+            others[SDL_GetGamepadID(pad)] = pad
+            Battery.disconnected()
+            // The press that picked it up mustn't also act
+            Bindings.swallowRequested = true
+            return activate(h)
+        }
+        if (pad == 0L) return false
+        checkSteam(now)
+        Battery.poll(pad, now)
+        return true
+    }
+
+    // Every connected gamepad stays open so a press on it can be noticed. The one in use is `pad`, the rest wait here
+    private val others = LinkedHashMap<Int, Long>()
+
+    private fun scan() {
+        val ids = SDL_GetGamepads() ?: return
+        val seen = HashSet<Int>()
         try {
-            if (!ids.hasRemaining()) return false
-            pad = SDL_OpenGamepad(ids[0])
+            // Indexed reads: a relative get() moves the position, and SDL_free frees from the position, not the start
+            for (i in ids.position() until ids.limit()) seen += ids.get(i)
         } finally {
             SDL_free(ids)
         }
-        if (pad == 0L) return false
+        if (pad != 0L) seen -= SDL_GetGamepadID(pad)
+        others.entries.removeAll { (id, h) -> (id !in seen).also { gone -> if (gone) SDL_CloseGamepad(h) } }
+        for (id in seen) if (id !in others) SDL_OpenGamepad(id).takeIf { it != 0L }?.let { others[id] = it }
+    }
+
+    private fun closeOthers() {
+        others.values.forEach(::SDL_CloseGamepad)
+        others.clear()
+    }
+
+    // A real press, a trigger pull or a stick push. Grip and stick touch sensors read "down" whenever it's held, so they don't count
+    private fun touched(h: Long): Boolean {
+        for (b in 0 until SDL_GAMEPAD_BUTTON_COUNT) if (b !in Bindings.CAPSENSE && SDL_GetGamepadButton(h, b)) return true
+        for (a in intArrayOf(SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY, SDL_GAMEPAD_AXIS_RIGHTX, SDL_GAMEPAD_AXIS_RIGHTY)) {
+            if (abs(SDL_GetGamepadAxis(h, a) / 32767f) > 0.6f) return true
+        }
+        return SDL_GetGamepadAxis(h, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) / 32767f > 0.5f ||
+            SDL_GetGamepadAxis(h, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) / 32767f > 0.5f
+    }
+
+    // Read from SDL's event thread to filter gyro reports
+    @Volatile private var padId = 0
+
+    private fun activate(handle: Long): Boolean {
+        pad = handle
+        padId = SDL_GetGamepadID(pad)
         SDL_SetGamepadSensorEnabled(pad, SDL_SENSOR_GYRO, true)
+        SDL_SetGamepadSensorEnabled(pad, SDL_SENSOR_ACCEL, true)
+        hasGravity = false
         gyroTs = 0L
         val vid = SDL_GetGamepadVendor(pad).toInt() and 0xFFFF
         val pid = SDL_GetGamepadProduct(pad).toInt() and 0xFFFF
@@ -982,18 +1275,84 @@ object Steamify : ClientModInitializer {
             Bindings.swallowRequested = true
             releasedForFocus = false
         } else log.info("Controller connected: {} ({} touchpads)", SDL_GetGamepadName(pad), SDL_GetNumGamepadTouchpads(pad))
+        // The serial tells two of the same model apart; without one, the model at least separates a Steam
+        // Controller from another gamepad
+        val serial = SDL_GetGamepadSerial(pad)?.takeIf { it.isNotBlank() }
+        val id = "%04x:%04x".format(vid, pid) + (serial?.let { ":$it" } ?: "")
+        // Each gyro drifts its own way. A different controller starts from its own calibration, or from zero and
+        // gets asked to calibrate
+        if (id != Settings.controller) {
+            Settings.controller = id
+            applyGyroBias(Settings.gyroBias ?: DoubleArray(3))
+            calibrationAsked = false
+        }
+        Profiles.connected(id)?.let {
+            SystemToast.addOrUpdate(mc.gui.toastManager(), profileToast,
+                Component.translatable("steamify.profiles.switched"), Component.literal(it.name))
+        }
         return true
     }
 
     private fun isDown(input: Int) = when (input) {
         // held[] still has last frame's state here; releasing lower than pressing stops a trigger resting
         // at the threshold from flickering (and clicking) every frame
-        Bindings.LT -> trigger(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > if (held[input]) TRIGGER_RELEASE else TRIGGER_THRESHOLD
-        Bindings.RT -> trigger(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > if (held[input]) TRIGGER_RELEASE else TRIGGER_THRESHOLD
+        Bindings.LT -> axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > if (held[input]) TRIGGER_RELEASE else TRIGGER_THRESHOLD
+        Bindings.RT -> axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > if (held[input]) TRIGGER_RELEASE else TRIGGER_THRESHOLD
+        in Bindings.L_PAD_TOUCH until Bindings.INPUT_COUNT -> virtualDown(input)
         else -> SDL_GetGamepadButton(pad, input)
     }
 
-    private fun trigger(axis: Int) = SDL_GetGamepadAxis(pad, axis) / 32767f
+    // Stick (raw, before the deadzone) or finger position for edge inputs: -1..1 per axis, y down. Null for an untouched pad
+    private fun position(source: Int): Pair<Float, Float>? = when (source) {
+        0 -> axis(SDL_GAMEPAD_AXIS_LEFTX) to axis(SDL_GAMEPAD_AXIS_LEFTY)
+        1 -> axis(SDL_GAMEPAD_AXIS_RIGHTX) to axis(SDL_GAMEPAD_AXIS_RIGHTY)
+        else -> (if (source == 2) leftPad else rightPad).takeIf { it.down }?.let { (it.x - 0.5f) * 2 to (it.y - 0.5f) * 2 }
+    }
+
+    // Pads read last frame's touch here, which is at most a frame behind
+    private fun virtualDown(i: Int): Boolean {
+        if (i == Bindings.L_PAD_TOUCH) return leftPad.down
+        if (i == Bindings.R_PAD_TOUCH) return rightPad.down
+        if (Bindings.isSwipe(i)) return false
+        val source = (i - Bindings.EDGES) / 5
+        val (x, y) = position(source) ?: return false
+        val pointed = when ((i - Bindings.EDGES) % 5) {
+            Bindings.UP -> -y >= abs(x)
+            Bindings.DOWN -> y >= abs(x)
+            Bindings.LEFT -> -x >= abs(y)
+            Bindings.RIGHT -> x >= abs(y)
+            else -> true
+        }
+        // Letting go takes a little less than pushing in, so resting right at the edge doesn't flicker
+        val threshold = Settings.effective(if (source < 2) Tune.STICK_EDGE else Tune.PAD_EDGE) - if (held[i]) EDGE_HYSTERESIS else 0
+        return pointed && hypot(x, y) * 100 >= threshold
+    }
+
+    private val pulses = IntArray(Bindings.INPUT_COUNT)
+
+    // Swipe pulses from the finger's motion. Motion only counts once it's old enough that it can't be the thumb
+    // lifting off, and reversing starts from zero so a twitch against the swipe can't undo a step
+    private fun swipes(t: Touch, pad: Int, now: Long) {
+        if (t.dx != 0f || t.dy != 0f) t.swipeQueue.addLast(Triple(now, t.dx, t.dy))
+        while (t.swipeQueue.isNotEmpty() && now - t.swipeQueue.first().first >= TOUCH_SETTLE_NS) {
+            val (_, dx, dy) = t.swipeQueue.removeFirst()
+            t.swipeX = if (t.swipeX != 0f && sign(dx) == -sign(t.swipeX)) dx else t.swipeX + dx
+            t.swipeY = if (t.swipeY != 0f && sign(dy) == -sign(t.swipeY)) dy else t.swipeY + dy
+        }
+        val step = Settings.effective(Tune.SWIPE_STEP) / 100f
+        while (abs(t.swipeX) >= step) {
+            val d = sign(t.swipeX)
+            t.swipeX -= d * step
+            pulses[Bindings.swipe(pad, if (d < 0) Bindings.LEFT else Bindings.RIGHT)]++
+        }
+        while (abs(t.swipeY) >= step) {
+            val d = sign(t.swipeY)
+            t.swipeY -= d * step
+            pulses[Bindings.swipe(pad, if (d < 0) Bindings.UP else Bindings.DOWN)]++
+        }
+    }
+
+    private fun axis(a: Int) = SDL_GetGamepadAxis(pad, a) / 32767f
 
     // Radial deadzone, rescaled so output starts at 0 right past the edge
     internal fun stick(axis: Int): Float {
@@ -1026,6 +1385,9 @@ object Steamify : ClientModInitializer {
             t.smooth.reset()
             t.pending.clear()
             t.scrollAcc = 0f
+            t.swipeQueue.clear()
+            t.swipeX = 0f
+            t.swipeY = 0f
         }
         t.down = down
         t.x = x
@@ -1048,7 +1410,7 @@ object Steamify : ClientModInitializer {
             t.vy = before[2]
             t.history.clear()
         }
-        val k = (1 - PAD_FRICTION * dt).coerceAtLeast(0.0)
+        val k = (1 - PAD_FRICTION * Settings.effective(Tune.PAD_FRICTION) / 100.0 * dt).coerceAtLeast(0.0)
         t.vx *= k
         t.vy *= k
         if (abs(t.vx) < 0.01 && abs(t.vy) < 0.01) { t.vx = 0.0; t.vy = 0.0 }
@@ -1058,7 +1420,8 @@ object Steamify : ClientModInitializer {
     private fun leftPadScroll(now: Long, step: (Int) -> Unit) {
         val t = leftPad
         if (!t.down) return
-        if (t.dx != 0f) t.pending.addLast(now to t.dx)
+        val d = t.dx
+        if (d != 0f) t.pending.addLast(now to d)
         // Motion only counts once it's old enough that it can't be the thumb lifting off
         while (t.pending.isNotEmpty() && now - t.pending.first().first >= TOUCH_SETTLE_NS) {
             val dx = t.pending.removeFirst().second

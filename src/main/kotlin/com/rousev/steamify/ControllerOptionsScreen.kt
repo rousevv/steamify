@@ -14,12 +14,18 @@ class ControllerOptionsScreen(last: Screen, options: Options) :
     OptionsSubScreen(last, options, Component.translatable("steamify.options.title")) {
 
     override fun addOptions() {
-        list?.addBig(Button.builder(Component.translatable("steamify.onboard.button")) { minecraft.gui.setScreen(OnboardingScreen(this)) }.build())
+        list?.addSmall(
+            Button.builder(Component.translatable("steamify.profiles.button", Profiles.active.name)) {
+                minecraft.gui.setScreen(ProfilesScreen { ControllerOptionsScreen(lastScreen, options) })
+            }.tooltip(Tooltip.create(Component.translatable("steamify.profiles.button.tooltip"))).build(),
+            Button.builder(Component.translatable("steamify.onboard.button")) { minecraft.gui.setScreen(OnboardingScreen(this)) }.build(),
+        )
         section("sensitivity",
             tune(Tune.STICK_SPEED, ::percent), tune(Tune.PAD_SPEED, ::percent),
-            tune(Tune.GYRO, ::multiplier), tune(Tune.STICK_DEADZONE, ::percent),
+            tune(Tune.PAD_FRICTION, ::percent), tune(Tune.GYRO, ::multiplier), tune(Tune.STICK_DEADZONE, ::percent),
             tune(Tune.CURSOR_SPEED, ::percent), flag(Flag.INVERT_Y),
         )
+        section("binds", *bindTunes())
         list?.addHeader(Component.translatable("steamify.options.sets"))
         list?.addBig(Button.builder(Component.translatable("steamify.sets.title")) { minecraft.gui.setScreen(ActionSetsScreen(this)) }
             .tooltip(Tooltip.create(Component.translatable("steamify.options.sets.tooltip"))).build())
@@ -29,7 +35,7 @@ class ControllerOptionsScreen(last: Screen, options: Options) :
             OptionInstance.Enum(GridSpot.entries, Codec.STRING.xmap(GridSpot::valueOf, GridSpot::name)),
             Settings.gridSpot,
         ) { Settings.gridSpot = it })
-        section("gyro", flag(Flag.STEADY_AIM), tune(Tune.STEADY_AIM_REDUCTION, ::percent))
+        section("gyro", flag(Flag.PLAYER_SPACE), flag(Flag.STEADY_AIM), tune(Tune.STEADY_AIM_REDUCTION, ::percent))
         list?.addBig(Button.builder(Component.translatable("steamify.calibrate.button")) { minecraft.gui.setScreen(GyroCalibrationScreen(this)) }
             .tooltip(Tooltip.create(Component.translatable("steamify.calibrate.button.tooltip"))).build())
         section("aimAssist", flag(Flag.AIM_ASSIST), tune(Tune.AIM_ASSIST, ::percent), flag(Flag.AIM_ASSIST_SINGLEPLAYER_ONLY))
@@ -75,6 +81,14 @@ internal fun tune(t: Tune, label: (Component, Int) -> Component): OptionInstance
     val key = "steamify.option.${t.key}"
     return OptionInstance(key, tooltip(key), label, OptionInstance.IntRange(t.min, t.max, true), Settings[t]) { Settings[t] = it }
 }
+
+internal fun ms(caption: Component, v: Int): Component = Component.translatable("options.generic_value", caption, "$v ms")
+
+/** Press timings and virtual input thresholds, in Controller Settings and in every bind editor. */
+internal fun bindTunes() = arrayOf(
+    tune(Tune.LONG_PRESS, ::ms), tune(Tune.DOUBLE_PRESS, ::ms),
+    tune(Tune.STICK_EDGE, ::percent), tune(Tune.PAD_EDGE, ::percent), tune(Tune.SWIPE_STEP, ::percent),
+)
 
 internal fun layoutOption(l: Layout): OptionInstance<Boolean> =
     OptionInstance.createBoolean("steamify.layout.${l.code}", Settings.layoutEnabled(l.code)) { on -> Settings.setLayoutEnabled(l.code, on) }

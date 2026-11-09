@@ -13,6 +13,7 @@ import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -21,12 +22,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(OptionsScreen.class)
 abstract class OptionsScreenMixin extends Screen {
     @Shadow @Final private Options options;
+    @Unique private SpriteIconButton steamify$button;
+    @Unique private AbstractWidget steamify$controls;
 
     protected OptionsScreenMixin(Component title) {
         super(title);
     }
 
-    // init runs again on resize, after the layout is arranged, so the anchor position is always current
     @Inject(method = "init", at = @At("TAIL"))
     private void steamify$controllerButton(CallbackInfo ci) {
         AbstractWidget controls = null;
@@ -34,13 +36,25 @@ abstract class OptionsScreenMixin extends Screen {
             if (child instanceof AbstractWidget w && OptionsScreen.CONTROLS.equals(w.getMessage())) controls = w;
         }
         if (controls == null) return;
+        steamify$controls = controls;
         Component title = Component.translatable("steamify.options.title");
         SpriteIconButton button = SpriteIconButton.builder(title, b -> minecraft.gui.setScreen(new ControllerOptionsScreen(this, options)), true)
             .size(20, 20)
             .sprite(Identifier.fromNamespaceAndPath("steamify", "icon/logo"), 16, 16)
             .build();
         button.setTooltip(Tooltip.create(title));
-        button.setPosition(controls.getRight() + 4, controls.getY());
-        addRenderableWidget(button);
+        steamify$button = addRenderableWidget(button);
+        steamify$place();
+    }
+
+    // A GUI scale change only rearranges the screen's own layout, not added buttons, so this follows "Controls..."
+    @Inject(method = "repositionElements", at = @At("TAIL"))
+    private void steamify$follow(CallbackInfo ci) {
+        steamify$place();
+    }
+
+    @Unique
+    private void steamify$place() {
+        if (steamify$button != null) steamify$button.setPosition(steamify$controls.getRight() + 4, steamify$controls.getY());
     }
 }

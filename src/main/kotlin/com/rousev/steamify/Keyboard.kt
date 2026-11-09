@@ -3,21 +3,26 @@ package com.rousev.steamify
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.components.AbstractWidget
-import net.minecraft.client.gui.components.MultiLineEditBox
 import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen
 import com.rousev.steamify.mixin.SignEditScreenInvoker
+import com.rousev.steamify.mixin.TextInputManagerAccessor
+import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.gui.components.events.ContainerEventHandler
 import net.minecraft.client.gui.components.events.GuiEventListener
 import net.minecraft.client.gui.screens.Screen
+import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_CANCELED
+import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_DOWN
+import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_MOTION
+import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_UP
 import org.lwjgl.sdl.SDLGamepad.*
 import kotlin.math.abs
 
 /**
  * Valve-style on-screen keyboard. Each trackpad points at keys in its half of the layout by absolute
  * position, so typing is "touch where the key is, click". D-pad / left stick + A is the fallback.
- * Shows while a text box is focused and the controller is the active input.
+ * A touchscreen (Steam Deck) types by tapping keys, and makes them bigger to hit.
+ * Shows while a text box is focused and the controller (or touchscreen) is the active input.
  */
 object Keyboard {
     private val mc get() = Minecraft.getInstance()
@@ -99,7 +104,7 @@ object Keyboard {
         build(l)
         Settings.setCurrentLayout(l.code)
     }
-    private var field: Any? = null // the focused text box, or the sign screen itself (signs have no widget)
+    private var field: Any? = null // the focused text box, or a screen that takes typing itself (signs)
     private var hidden = false
     private var shift = false
     private var selRow = 1
@@ -111,13 +116,82 @@ object Keyboard {
     private var leftDot: Pair<Float, Float>? = null
     private var rightDot: Pair<Float, Float>? = null
     private val prev = BooleanArray(Bindings.INPUT_COUNT)
+
+    // Touchscreen. Positions are 0..1 across the window, as SDL reports them
+    private val fingers = HashMap<Long, Pair<Float, Float>>() // fingers that landed on the keyboard
+    private val taps = ArrayList<Pair<Float, Float>>() // lifted fingers, typed on the next update
+    private var touchHover: List<Key> = emptyList()
+    /** The keyboard was last used by touch: keys get bigger, to hit with a finger. */
+    private var touchMode = false
+    // Where the keyboard was last drawn: left, top, right, bottom of its backing, in GUI pixels, plus the GUI size
+    private var drawn: IntArray? = null
+
+    /** SDL synthesizes mouse clicks from touches. While a finger is on the keyboard they mustn't click what's under it. */
+    @JvmStatic
+    var swallowMouse = false
+        private set
+
+    /** From SDL's event watch, as each touchscreen event arrives. */
+    fun touch(type: Int, finger: Long, x: Float, y: Float) {
+        when (type) {
+            SDL_EVENT_FINGER_DOWN -> {
+                // Any touch makes the touchscreen the input in use, so tapping a text box brings the keyboard up
+                Steamify.usingController = true
+                touchMode = true
+                if (!over(x, y)) {
+                    // Tapping the text box it was hidden from brings it back; tapping another box already does,
+                    // since focus moves
+                    val screen = mc.gui.screen() ?: return
+                    val r = target(screen) ?: return
+                    val gx = x * screen.width
+                    val gy = y * screen.height
+                    if (gx >= r[0] && gx < r[2] && gy >= r[1] && gy < r[3]) hidden = false
+                    return
+                }
+                fingers[finger] = x to y
+                swallowMouse = true
+            }
+            SDL_EVENT_FINGER_MOTION -> if (finger in fingers) fingers[finger] = x to y
+            SDL_EVENT_FINGER_UP -> fingers.remove(finger)?.let { taps += x to y }
+            SDL_EVENT_FINGER_CANCELED -> fingers.remove(finger)
+        }
+    }
+
+    /** Once per frame, after the frame's events were handled: a lifted finger's mouse release has gone by then. */
+    fun endFrame() {
+        // With the keyboard gone (closed, or the window lost focus mid-touch and the lift never came), nothing is
+        // held on it: never leave mouse clicks blocked
+        if (drawn == null || !mc.isWindowActive) {
+            fingers.clear()
+            taps.clear()
+        }
+        if (fingers.isEmpty()) swallowMouse = false
+    }
+
+    private fun over(x: Float, y: Float): Boolean {
+        val d = drawn ?: return false
+        val gx = x * d[4]
+        val gy = y * d[5]
+        return gx >= d[0] && gx < d[2] && gy >= d[1] && gy < d[3]
+    }
+
+    // The key under a touch position, from where the keys were last drawn
+    private fun keyAt(x: Float, y: Float): Key? {
+        val d = drawn ?: return null
+        val (unit, left, top) = lastPlace
+        val kx = (x * d[4] - left) / (unit * COLS)
+        val ky = (y * d[5] - top) / (unit * rows.size)
+        return keys.firstOrNull { kx >= it.x0 && kx < it.x1 && ky >= it.y0 && ky < it.y1 }
+    }
+
+    private var lastPlace = Triple(0, 0, 0)
     private val repeatAt = HashMap<Int, Long>()
     private const val REPEAT_DELAY_NS = 400_000_000L
     private const val REPEAT_RATE_NS = 70_000_000L
 
     /** True while the keyboard is up for this screen; it then owns all controller input in the menu layout. */
     fun visible(screen: Screen?): Boolean {
-        val f: Any? = if (screen is AbstractSignEditScreen) screen else screen?.let(::focusedField)
+        val f: Any? = screen?.let { (Minecraft.getInstance().textInputManager() as TextInputManagerAccessor).`steamify$owner`() ?: modField(it) }
         if (f !== field) {
             field = f
             hidden = false
@@ -132,20 +206,35 @@ object Keyboard {
         return f != null && !hidden && Steamify.usingController
     }
 
-    // Focus can sit deep in nested containers; creative's search box is focused without being the screen's focus.
-    // MultiLineEditBox is the book page
-    private fun focusedField(root: ContainerEventHandler): AbstractWidget? {
+    // Text boxes made by mods that skip Minecraft's text input, like Scholar's book pages: a focused widget whose
+    // typing code is the mod's own. Focus can sit deep in nested containers
+    private fun modField(root: ContainerEventHandler): AbstractWidget? {
         for (child: GuiEventListener in root.children()) {
-            if (child is EditBox && child.canConsumeInput()) return child
-            if (child is MultiLineEditBox && child.isFocused && child.visible) return child
-            if (child is ContainerEventHandler) focusedField(child)?.let { return it }
+            if (child is AbstractWidget && child.isFocused && child.visible && modTyping.get(child.javaClass)) return child
+            if (child is ContainerEventHandler) modField(child)?.let { return it }
         }
         return null
+    }
+
+    private fun charTypedFrom(c: Class<*>) = c.getMethod("charTyped", CharacterEvent::class.java).declaringClass
+
+    /** Widgets that take typing: vanilla's text boxes and any mod's. Left pad hovering mustn't focus these. */
+    val typing = object : ClassValue<Boolean>() {
+        override fun computeValue(c: Class<*>) = charTypedFrom(c) != GuiEventListener::class.java
+    }
+    private val modTyping = object : ClassValue<Boolean>() {
+        override fun computeValue(c: Class<*>) = !charTypedFrom(c).name.startsWith("net.minecraft.")
     }
 
     fun update(now: Long) {
         leftHover = hover(Steamify.leftPad, left = true, old = leftHover)
         rightHover = hover(Steamify.rightPad, left = false, old = rightHover)
+        // Lifting a finger types the key it ended on, like a phone keyboard, so sliding off corrects a miss
+        taps.forEach { (x, y) -> keyAt(x, y)?.let(::type) }
+        taps.clear()
+        touchHover = fingers.values.mapNotNull { (x, y) -> keyAt(x, y) }
+        // Back to the trackpads or buttons: normal size again
+        if (Steamify.leftPad.down || Steamify.rightPad.down || selShown) touchMode = false
 
         if (edge(SDL_GAMEPAD_BUTTON_TOUCHPAD) || edge(Bindings.LT)) leftHover?.let(::type)
         if (edge(SDL_GAMEPAD_BUTTON_MISC2) || edge(Bindings.RT)) rightHover?.let(::type)
@@ -259,6 +348,8 @@ object Keyboard {
     private const val GAP = 4
     private const val HINT_H = 16 // hint line under the keys
     private const val MIN_UNIT = 12 // smaller keys can't hold their labels; then the keyboard ignores the field
+    private const val MAX_UNIT = 22
+    private const val TOUCH_UNIT = 40 // about a fingertip at GUI scale 3 on the Deck
 
     /**
      * Unit, left and top of the keys. Tries the free space below, above, left and right of the field and
@@ -266,11 +357,12 @@ object Keyboard {
      */
     private fun place(screen: Screen, sideW: Int): Triple<Int, Int, Int> {
         val n = rows.size
-        val full = minOf(22, (screen.width - 20) / COLS.toInt())
+        val cap = if (touchMode) TOUCH_UNIT else MAX_UNIT
+        val full = minOf(cap, (screen.width - 20) / COLS.toInt(), (screen.height - 40) / (n + 1))
         // Without a field (or no room anywhere): the bottom, clear of the chat input line
         val fallback = Triple(full, (screen.width - (full * COLS).toInt()) / 2, screen.height - full * n - 30)
         val r = target(screen) ?: return fallback
-        fun fit(w: Int, h: Int) = minOf(22, (w - 2 * sideW) / COLS.toInt(), (h - GAP - HINT_H) / n)
+        fun fit(w: Int, h: Int) = minOf(cap, (w - 2 * sideW) / COLS.toInt(), (h - GAP - HINT_H) / n)
         val below = fit(screen.width, screen.height - r[3] - 2 * GAP)
         val above = fit(screen.width, r[1] - 2 * GAP)
         val leftW = fit(r[0] - 2 * GAP, screen.height)
@@ -280,7 +372,8 @@ object Keyboard {
         val w = (best * COLS).toInt()
         val h = best * n
         val midX = (screen.width - w) / 2
-        val midY = ((r[1] + r[3] - h) / 2).coerceIn(GAP, screen.height - h - HINT_H - GAP)
+        // Not coerceIn: in a window just tall enough for the keys, the upper bound can drop under GAP and that throws
+        val midY = ((r[1] + r[3] - h) / 2).coerceAtMost(screen.height - h - HINT_H - GAP).coerceAtLeast(GAP)
         return when (best) {
             below -> Triple(best, midX, r[3] + 2 * GAP)
             above -> Triple(best, midX, r[1] - GAP - HINT_H - h)
@@ -290,6 +383,7 @@ object Keyboard {
     }
 
     fun render(screen: Screen, g: GuiGraphicsExtractor) {
+        drawn = null
         if (!visible(screen)) return
         val font = mc.font
         val hint = when {
@@ -298,10 +392,12 @@ object Keyboard {
             else -> hint()
         }
         val (unit, left, top) = place(screen, 4)
+        lastPlace = Triple(unit, left, top)
         val w = (unit * COLS).toInt()
         val h = unit * rows.size
         val pad = maxOf(4, (font.width(hint) - w) / 2 + 4) // widen the backing if the hint is wider than the keys
         g.fill(left - pad, top - 4, left + w + pad, top + h + 16, 0xD0101010.toInt())
+        drawn = intArrayOf(left - pad, top - 4, left + w + pad, top + h + 16, screen.width, screen.height)
         val selected = if (selShown) rows[selRow][selCol] else null
         for (k in keys) {
             val x0 = left + (k.x0 * w).toInt() + 1
@@ -309,6 +405,7 @@ object Keyboard {
             val y0 = top + (k.y0 * h).toInt() + 1
             val y1 = top + (k.y1 * h).toInt() - 1
             val color = when {
+                k in touchHover -> 0xFF3C8C46.toInt()
                 k === leftHover -> 0xFF2F6FB0.toInt()
                 k === rightHover -> 0xFFC06A1E.toInt()
                 k.action == Action.SHIFT && shift -> 0xFF5A5A5A.toInt()

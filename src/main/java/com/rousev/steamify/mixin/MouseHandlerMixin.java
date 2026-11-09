@@ -1,6 +1,8 @@
 package com.rousev.steamify.mixin;
 
+import com.rousev.steamify.Keyboard;
 import com.rousev.steamify.Steamify;
+import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.MouseHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,5 +15,12 @@ abstract class MouseHandlerMixin {
     @Inject(method = "handleAccumulatedMovement", at = @At("HEAD"))
     private void steamify$poll(CallbackInfo ci) {
         Steamify.frame();
+    }
+
+    // A finger on the on-screen keyboard types; the click SDL makes from it mustn't also hit what's under the keys.
+    // Steamify's own clicks (A, pad clicks) still go through
+    @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
+    private void steamify$touchKeyboard(long handle, MouseButtonInfo info, int action, CallbackInfo ci) {
+        if (Keyboard.getSwallowMouse() && !Steamify.synthetic) ci.cancel();
     }
 }

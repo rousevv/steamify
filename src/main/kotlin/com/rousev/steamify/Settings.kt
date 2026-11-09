@@ -2,6 +2,8 @@ package com.rousev.steamify
 
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.Minecraft
+import net.minecraft.locale.Language
+import net.minecraft.network.chat.Component
 import java.util.EnumMap
 import java.util.Properties
 import kotlin.io.path.exists
@@ -34,21 +36,31 @@ enum class Haptic(val key: String, val group: String, val kind: HapticKind, val 
     HEARTBEAT("heartbeat", "combat", HapticKind.RUMBLE, 71),
 }
 
-/** Numeric settings, stored as ints. Speeds are percent of the built-in tuning, gyro is tenths of a multiplier. */
+/** Numeric settings, stored as ints. Speeds are percent of the built-in tuning, gyro is tenths of a multiplier, press times are ms. */
 enum class Tune(val key: String, val default: Int, val min: Int, val max: Int) {
     STICK_SPEED("look.stickSpeed", 100, 25, 300),
     STICK_DEADZONE("look.stickDeadzone", 15, 0, 40),
     PAD_SPEED("look.padSpeed", 100, 25, 300),
+    // Percent of the built-in spin-down: higher stops a flick sooner
+    PAD_FRICTION("look.padFriction", 100, 10, 400),
     GYRO("look.gyro", 15, 5, 50),
     CURSOR_SPEED("menu.cursorSpeed", 100, 25, 300),
     STEADY_AIM_REDUCTION("gyro.steadyAimReduction", 50, 10, 90),
     AIM_ASSIST("aim.assistStrength", 40, 5, 100),
     HAPTICS("haptics.master", 100, 0, 200),
+    // Milliseconds, for the press gestures in BindScreen
+    LONG_PRESS("binds.longPress", 400, 150, 1500),
+    DOUBLE_PRESS("binds.doublePress", 250, 100, 600),
+    // Percent of the way to the edge for edge inputs, and percent of the pad's width per swipe press
+    STICK_EDGE("binds.stickEdge", 90, 30, 100),
+    PAD_EDGE("binds.padEdge", 60, 20, 100),
+    SWIPE_STEP("binds.swipeStep", 12, 4, 40),
 }
 
 enum class Flag(val key: String, val default: Boolean) {
     INVERT_Y("look.invertY", false),
     STEADY_AIM("gyro.steadyAim", true),
+    PLAYER_SPACE("gyro.playerSpace", true),
     AIM_ASSIST("aim.assist", true),
     AIM_ASSIST_SINGLEPLAYER_ONLY("aim.assistSingleplayerOnly", true),
     HOTBAR_STRIP("hotbar.strip", false),
@@ -64,15 +76,26 @@ object Settings {
     private var current: String? = null
     private var seenLanguage: String? = null // game language the layout was last synced to
 
-    /** Resting gyro rate per axis (deg/s) and its noise, from GyroCalibration. Null until calibrated once. */
-    var gyroBias: DoubleArray? = null
-        private set
-    var gyroNoise = 0.0
-        private set
+    /** Resting gyro rate per axis (deg/s) and its noise, from GyroCalibration. Every gyro drifts differently. */
+    private class Calibration(val bias: DoubleArray, val noise: Double)
+
+    // Keyed by controller id. 1.0 kept one calibration for all controllers, under LEGACY
+    private val calibrations = HashMap<String, Calibration>()
+    private const val LEGACY = ""
+
+    /** The connected controller, so calibration follows it. A 1.0 calibration goes to the first one without its own. */
+    var controller: String? = null
+        set(v) {
+            field = v
+            if (v != null && v !in calibrations) calibrations.remove(LEGACY)?.let { calibrations[v] = it; save() }
+        }
+
+    /** The connected controller's calibration, null until it's been calibrated once. */
+    val gyroBias get() = calibrations[controller]?.bias
+    val gyroNoise get() = calibrations[controller]?.noise ?: 0.0
 
     fun setGyroCalibration(bias: DoubleArray, noise: Double) {
-        gyroBias = bias
-        gyroNoise = noise
+        calibrations[controller ?: LEGACY] = Calibration(bias, noise)
         save()
     }
 
@@ -99,6 +122,23 @@ object Settings {
         onboarded = true
         save()
     }
+
+    /** Game languages whose "AI translated" notice on the title screen has been dismissed. */
+    private val noticeSeen = HashSet<String>()
+
+    private fun language() = Minecraft.getInstance().options.languageCode
+
+    fun dismissTranslationNotice() {
+        noticeSeen += language()
+        save()
+    }
+
+    /** The notice text, while there's one to show: only machine translations have the key, English never does. */
+    @JvmStatic
+    fun translationNotice(): Component? =
+        if (language() in noticeSeen || !Language.getInstance().has(NOTICE)) null else Component.translatable(NOTICE)
+
+    private const val NOTICE = "steamify.translationNotice"
 
     fun setStrength(h: Haptic, v: Int) {
         haptics[h] = v.coerceIn(0, 100)
@@ -164,9 +204,42 @@ object Settings {
         save()
     }
 
-    // Straight into the maps, not through the setters, so loading never writes a half-read file back
+    private var loading = false
+
+    // Straight into the maps; the gridSpot setter would save, which loading holds off so a half-read file never goes back
     fun load() {
         if (!file.exists()) return
+        loading = true
+        try { read() } finally { loading = false }
+    }
+
+    /**
+     * Swaps in another profile's settings file. Gyro calibration, the setup guide and dismissed notices belong to
+     * this controller and install, not the profile, so they carry over.
+     */
+    fun reloadProfile() {
+        val calibrated = HashMap(calibrations)
+        val guided = onboarded
+        val seen = noticeSeen.toSet()
+        loading = true
+        try {
+            haptics.clear()
+            tunes.clear()
+            flags.clear()
+            layouts = null
+            current = null
+            seenLanguage = null
+            gridSpot = GridSpot.CENTER
+            if (file.exists()) read()
+        } finally { loading = false }
+        calibrations.clear()
+        calibrations.putAll(calibrated)
+        onboarded = guided
+        noticeSeen += seen
+        save()
+    }
+
+    private fun read() {
         val p = Properties().apply { file.inputStream().use(::load) }
         // Strengths saved before the curve were linear power; the square root keeps them feeling the same
         val curved = p.getProperty("haptic.curve") != null
@@ -174,29 +247,41 @@ object Settings {
             haptics[h] = (if (curved) it else (10 * sqrt(it.coerceAtLeast(0).toDouble())).roundToInt()).coerceIn(0, 100)
         }
         onboarded = p.getProperty("onboarded").toBoolean()
+        p.getProperty("translationNoticeSeen")?.split(',')?.filter(String::isNotBlank)?.let(noticeSeen::addAll)
         for (t in Tune.entries) p.getProperty(t.key)?.toIntOrNull()?.let { tunes[t] = it.coerceIn(t.min, t.max) }
         for (f in Flag.entries) p.getProperty(f.key)?.let { flags[f] = it.toBoolean() }
         p.getProperty("keyboard.layouts")?.let { v -> layouts = v.split(',').map(String::trim).filter(String::isNotEmpty).toMutableSet() }
         current = p.getProperty("keyboard.current")
         seenLanguage = p.getProperty("keyboard.language")
-        p.getProperty("gyro.bias")?.split(',')?.mapNotNull { it.toDoubleOrNull() }?.takeIf { it.size == 3 }?.let { gyroBias = it.toDoubleArray() }
-        gyroNoise = p.getProperty("gyro.noise")?.toDoubleOrNull() ?: 0.0
+        // "gyro.<controller>.bias" per controller; plain "gyro.bias" is 1.0's single calibration
+        for (k in p.stringPropertyNames()) {
+            if (!k.startsWith("gyro.") || !k.endsWith(".bias") && k != "gyro.bias") continue
+            val id = if (k == "gyro.bias") LEGACY else k.removePrefix("gyro.").removeSuffix(".bias")
+            val noiseKey = if (id == LEGACY) "gyro.noise" else "gyro.$id.noise"
+            val bias = p.getProperty(k).split(',').mapNotNull { it.toDoubleOrNull() }.takeIf { it.size == 3 } ?: continue
+            calibrations[id] = Calibration(bias.toDoubleArray(), p.getProperty(noiseKey)?.toDoubleOrNull() ?: 0.0)
+        }
         p.getProperty("hotbar.gridSpot")?.let { v -> GridSpot.entries.firstOrNull { it.key == v } }?.let { gridSpot = it }
     }
 
     private fun save() {
+        if (loading) return
         val p = Properties()
         haptics.forEach { (h, v) -> p.setProperty("haptic.${h.key}", v.toString()) }
         p.setProperty("haptic.curve", "squared")
         p.setProperty("onboarded", onboarded.toString())
+        p.setProperty("translationNoticeSeen", noticeSeen.joinToString(","))
         tunes.forEach { (t, v) -> p.setProperty(t.key, v.toString()) }
         flags.forEach { (f, v) -> p.setProperty(f.key, v.toString()) }
         layouts?.let { p.setProperty("keyboard.layouts", it.joinToString(",")) }
         current?.let { p.setProperty("keyboard.current", it) }
         seenLanguage?.let { p.setProperty("keyboard.language", it) }
         p.setProperty("hotbar.gridSpot", gridSpot.key)
-        gyroBias?.let { p.setProperty("gyro.bias", it.joinToString(",")) }
-        p.setProperty("gyro.noise", gyroNoise.toString())
+        calibrations.forEach { (id, c) ->
+            val key = if (id == LEGACY) "gyro" else "gyro.$id"
+            p.setProperty("$key.bias", c.bias.joinToString(","))
+            p.setProperty("$key.noise", c.noise.toString())
+        }
         file.outputStream().use { p.store(it, "Steamify settings") }
     }
 }

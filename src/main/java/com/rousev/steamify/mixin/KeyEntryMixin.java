@@ -1,6 +1,7 @@
 package com.rousev.steamify.mixin;
 
 import com.rousev.steamify.Bindings;
+import com.rousev.steamify.PadButton;
 import com.google.common.collect.ImmutableList;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -18,7 +19,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-// Controller binding button left of the keyboard one in every Controls row, mod keybinds included
+// Controller binding button left of the keyboard one in every Controls row, mod keybinds included.
+// Right-click (LT) on it opens the press types for that keybind
 @Mixin(KeyBindsList.KeyEntry.class)
 abstract class KeyEntryMixin {
     @Shadow @Final private KeyMapping key;
@@ -27,7 +29,7 @@ abstract class KeyEntryMixin {
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void steamify$init(CallbackInfo ci) {
-        steamify$pad = Button.builder(Bindings.label(key), b -> Bindings.listen(key)).bounds(0, 0, 60, 20).build();
+        steamify$pad = new PadButton(key);
     }
 
     @Inject(method = "extractContent", at = @At("TAIL"))

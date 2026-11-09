@@ -41,6 +41,13 @@ object HotbarPad {
     }
 
     /** In game, once per frame. */
+    /** Left pad doing something else (an action set made it a scroll wheel): nothing selected or shown. */
+    fun idle() {
+        shown = false
+        col = -1
+        row = -1
+    }
+
     fun update(now: Long) {
         val t = Steamify.leftPad
         val p = mc.player
