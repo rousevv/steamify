@@ -18,6 +18,7 @@
     "LocalPlayerSprintMixin",
     "MouseHandlerMixin",
     "OptionsScreenMixin",
+    "SDLEventHandlerMixin",
     "PauseScreenMixin",
     "ResetAllMixin",
     "SignEditScreenInvoker",

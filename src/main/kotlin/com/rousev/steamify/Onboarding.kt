@@ -12,9 +12,11 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.tan
 
-/** First boot with a controller: hotbar, haptic strength, gyro calibration, look speeds, keyboard layouts. */
+/** First boot with a controller: hotbar, binds on screen, haptic strength, gyro calibration, look speeds, keyboard layouts. */
 class OnboardingScreen(private val last: Screen?) : Screen(Component.translatable("steamify.onboard.title")) {
-    private var page = 0
+    // The trackpad hotbar page only makes sense with the hardware for it
+    private val first = if (Steamify.steamHardware()) HOTBAR else BINDS
+    private var page = first
     private val row = ArrayList<AbstractWidget>()
     private val footer = ArrayList<AbstractWidget>()
 
@@ -51,6 +53,7 @@ class OnboardingScreen(private val last: Screen?) : Screen(Component.translatabl
                 spot.active = !Settings[Flag.HOTBAR_STRIP]
                 row += spot
             }
+            BINDS -> row += flag(Flag.SHOW_BINDS).createButton(minecraft.options, 0, 0, W)
             HAPTICS -> {
                 row += Strength()
                 row += Button.builder(Component.translatable("steamify.onboard.testClick")) {
@@ -69,8 +72,8 @@ class OnboardingScreen(private val last: Screen?) : Screen(Component.translatabl
             }
             LAYOUTS -> row += Layouts.all.map { layoutOption(it).createButton(minecraft.options, 0, 0, 110) }
         }
-        footer += Button.builder(if (page == 0) Component.translatable("steamify.onboard.skip") else CommonComponents.GUI_BACK) {
-            if (page == 0) onClose() else turn(-1)
+        footer += Button.builder(if (page == first) Component.translatable("steamify.onboard.skip") else CommonComponents.GUI_BACK) {
+            if (page == first) onClose() else turn(-1)
         }.width(100).build()
         footer += Button.builder(if (page == LAST) CommonComponents.GUI_DONE else Component.translatable("steamify.onboard.next")) {
             if (page == LAST) onClose() else turn(1)
@@ -120,7 +123,12 @@ class OnboardingScreen(private val last: Screen?) : Screen(Component.translatabl
             GYRO if !Steamify.hasGyro() -> "steamify.onboard.gyro.none"
             GYRO if Settings.gyroBias != null -> "steamify.onboard.gyro.done"
             HOTBAR -> return HotbarPad.preview(g)
+            LOOK if !Steamify.hasRightPad -> "steamify.onboard.look.noPads"
             else -> "steamify.onboard.page$page"
+        }
+        if (page == BINDS) {
+            HotbarPad.preview(g, live = false)
+            if (Settings[Flag.SHOW_BINDS]) BindsHud.preview(g, minecraft.options)
         }
         var y = 22
         for (line in font.split(Component.translatable(text), width - 40)) {
@@ -196,10 +204,11 @@ class OnboardingScreen(private val last: Screen?) : Screen(Component.translatabl
 
     private companion object {
         const val HOTBAR = 0
-        const val HAPTICS = 1
-        const val GYRO = 2
-        const val LOOK = 3
-        const val LAYOUTS = 4
+        const val BINDS = 1
+        const val HAPTICS = 2
+        const val GYRO = 3
+        const val LOOK = 4
+        const val LAYOUTS = 5
         const val LAST = LAYOUTS
         const val W = 150
         const val ROW_Y = 56

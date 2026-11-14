@@ -44,6 +44,8 @@ enum class Tune(val key: String, val default: Int, val min: Int, val max: Int) {
     // Percent of the built-in spin-down: higher stops a flick sooner
     PAD_FRICTION("look.padFriction", 100, 10, 400),
     GYRO("look.gyro", 15, 5, 50),
+    // Extra gyro sensitivity at full speed, percent. Slow turns keep the base sensitivity
+    GYRO_ACCEL("look.gyroAccel", 0, 0, 200),
     CURSOR_SPEED("menu.cursorSpeed", 100, 25, 300),
     STEADY_AIM_REDUCTION("gyro.steadyAimReduction", 50, 10, 90),
     AIM_ASSIST("aim.assistStrength", 40, 5, 100),
@@ -64,6 +66,7 @@ enum class Flag(val key: String, val default: Boolean) {
     AIM_ASSIST("aim.assist", true),
     AIM_ASSIST_SINGLEPLAYER_ONLY("aim.assistSingleplayerOnly", true),
     HOTBAR_STRIP("hotbar.strip", false),
+    SHOW_BINDS("hud.showBinds", false),
 }
 
 // Separate from steamify.properties, whose keys are arbitrary keybind names from any mod

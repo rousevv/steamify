@@ -28,7 +28,8 @@ import kotlin.io.path.outputStream
 /**
  * Whole setups to switch between: binds, action sets and Controller Settings. The live config files stay where
  * they are; each profile keeps its own copy in config/steamify-profiles/<id>/, and switching swaps them over.
- * Each controller remembers the profile last used with it and brings it back when it connects.
+ * A controller connecting for the first time gets a profile of its own, locked to it. A controller links to one
+ * profile; several controllers can share one.
  */
 object Profiles {
     class Profile(val id: String, var name: String)
@@ -44,7 +45,51 @@ object Profiles {
 
     private val links = HashMap<String, String>() // controller id -> profile id
     private val locked = HashSet<String>() // controller ids whose link only changes by unlocking first
+    private val names = HashMap<String, String>() // controller id -> its name, for the Controllers screen
     private var controller: String? = null // the connected one
+
+    /** Every controller seen, by name. */
+    fun controllers(): List<String> = links.keys.sortedBy { nameOf(it) }
+
+    // A Steam Controller is a different id per connection, so the connection tells its rows apart. Others linked
+    // before names were kept show the id until they connect again
+    fun nameOf(c: String) = when (c.take(9)) {
+        "28de:1302" -> "Steam Controller (USB)"
+        "28de:1303" -> "Steam Controller (Bluetooth)"
+        "28de:1304" -> "Steam Controller (Puck)"
+        "28de:1205" -> names[c] ?: "Steam Deck"
+        else -> names[c] ?: c
+    }
+
+    private fun steamController(c: String) = c.take(9) in setOf("28de:1302", "28de:1303", "28de:1304")
+
+    /** A connected controller's name, kept for one already in the list. */
+    fun seen(c: String, name: String) {
+        if (c in links && names.put(c, name) != name) save()
+    }
+
+    fun profileOf(c: String) = all.firstOrNull { it.id == links[c] }
+
+    fun inUse(c: String) = c == controller
+
+    /** Changes when a profile is added, removed or switched to, or a controller connects or is reassigned. Not on a rename. */
+    fun state() = listOf(all.map { it.id }, active.id, links.toMap(), names.toMap(), controller)
+
+    /** Ties a controller to a profile from the Controllers screen, locked. The one in use switches right away. */
+    fun assign(c: String, p: Profile) {
+        links[c] = p.id
+        locked += c
+        if (c == controller) switchTo(p)
+        save()
+    }
+
+    /** Drops a controller; it gets a fresh profile the next time it connects. */
+    fun forget(c: String) {
+        links -= c
+        locked -= c
+        names -= c
+        save()
+    }
 
     /** The profile the connected controller comes back to, or null with no controller. */
     fun linked(): Profile? = controller?.let { c -> all.firstOrNull { it.id == links[c] } }
@@ -59,13 +104,28 @@ object Profiles {
     }
 
     /** A controller connected. Returns the profile switched to, or null when it stays the same. */
-    fun connected(id: String): Profile? {
+    fun connected(id: String, name: String): Profile? {
         controller = id
-        val linked = all.firstOrNull { it.id == links[id] }
-        if (linked == null || linked === active) {
-            link()
-            return null
+        names[id] = name
+        // A Steam Controller on a new connection (puck, USB, Bluetooth) joins its other connections' profile
+        if (id !in links && steamController(id)) links.keys.firstOrNull(::steamController)?.let {
+            links[id] = links.getValue(it)
+            locked += id
+            save()
         }
+        val linked = all.firstOrNull { it.id == links[id] }
+        if (linked == null) {
+            locked += id
+            // The first controller takes the profile in use; a later one starts from a copy of it
+            if (active.id !in links.values) {
+                link(force = true)
+                return null
+            }
+            val p = create(if (steamController(id)) "Steam Controller" else nameOf(id))
+            switchTo(p)
+            return p
+        }
+        if (linked === active) return null
         switchTo(linked)
         return linked
     }
@@ -75,8 +135,8 @@ object Profiles {
     }
 
     // Switching profiles while a controller is in use makes that its profile, unless it's locked to another
-    private fun link() {
-        controller?.takeIf { it !in locked }?.let { links[it] = active.id }
+    private fun link(force: Boolean = false) {
+        controller?.takeIf { force || it !in locked }?.let { links[it] = active.id }
         save()
     }
 
@@ -88,7 +148,10 @@ object Profiles {
                 all += Profile(id, p.getProperty("$id.name") ?: id)
             }
             all.firstOrNull { it.id == p.getProperty("active") }?.let { active = it }
-            for (k in p.stringPropertyNames()) if (k.startsWith("controller.")) links[k.removePrefix("controller.")] = p.getProperty(k)
+            for (k in p.stringPropertyNames()) {
+                if (k.startsWith("controller.")) links[k.removePrefix("controller.")] = p.getProperty(k)
+                if (k.startsWith("controllerName.")) names[k.removePrefix("controllerName.")] = p.getProperty(k)
+            }
             p.getProperty("locked")?.split('\n')?.filter(String::isNotBlank)?.let(locked::addAll)
         }
         if (all.isEmpty()) all += Profile("p1", "Default")
@@ -102,6 +165,7 @@ object Profiles {
         p.setProperty("active", active.id)
         all.forEach { p.setProperty("${it.id}.name", it.name) }
         links.forEach { (c, id) -> p.setProperty("controller.$c", id) }
+        names.forEach { (c, n) -> p.setProperty("controllerName.$c", n) }
         p.setProperty("locked", locked.joinToString("\n"))
         index.outputStream().use { p.store(it, "Steamify profiles") }
     }
@@ -127,9 +191,10 @@ object Profiles {
     }
 
     /** A copy of the current setup, added to the list. The current profile stays active until you pick the new one. */
-    fun create(): Profile {
+    fun create(name: String = "Profile ${all.size + 1}"): Profile {
         val id = nextId()
-        val p = Profile(id, "Profile ${all.size + 1}")
+        val taken = all.map { it.name }.toSet()
+        val p = Profile(id, generateSequence(2) { it + 1 }.map { "$name $it" }.let { sequenceOf(name) + it }.first { it !in taken })
         copy(config, dir.resolve(id))
         all += p
         save()
@@ -179,7 +244,7 @@ object Profiles {
     fun delete(p: Profile) {
         if (p === active) return
         all -= p
-        links.entries.removeAll { (c, id) -> (id == p.id).also { if (it) locked -= c } }
+        links.entries.removeAll { (c, id) -> (id == p.id).also { if (it) { locked -= c; names -= c } } }
         files.forEach { dir.resolve(p.id).resolve(it).deleteIfExists() }
         dir.resolve(p.id).deleteIfExists()
         save()
@@ -205,8 +270,15 @@ object Profiles {
 class ProfilesScreen(private val back: () -> Screen) : Screen(Component.translatable("steamify.profiles.title")) {
     private var layout = HeaderAndFooterLayout(this)
     private var list: ScrollableLayout? = null
+    private var shown: Any? = null
+
+    // A controller connecting while this is open can add or switch a profile
+    override fun tick() {
+        if (Profiles.state() != shown) rebuildWidgets()
+    }
 
     override fun init() {
+        shown = Profiles.state()
         val scrolled = list?.scrollAmount ?: 0.0
         layout = HeaderAndFooterLayout(this)
         layout.addTitleHeader(title, font)
@@ -244,6 +316,8 @@ class ProfilesScreen(private val back: () -> Screen) : Screen(Component.translat
             if (Profiles.import(Share.clipboard()) == null) Share.toast("steamify.share.invalid") else rebuildWidgets()
         }.width(W / 2 - 2).tooltip(Tooltip.create(Component.translatable("steamify.profiles.paste.tooltip"))).build())
         col.addChild(adds)
+        col.addChild(Button.builder(Component.translatable("steamify.profiles.controllers")) { minecraft.gui.setScreen(ControllersScreen(this)) }
+            .width(W).tooltip(Tooltip.create(Component.translatable("steamify.profiles.controllers.tooltip"))).build())
         list = layout.addToContents(ScrollableLayout(minecraft, col, layout.contentHeight))
         // Locking needs a controller in use and a profile it's linked to
         val footer = LinearLayout.horizontal().spacing(4)
@@ -269,6 +343,58 @@ class ProfilesScreen(private val back: () -> Screen) : Screen(Component.translat
 
     private companion object {
         const val W = 280 // a row: up, down, name, Copy, Delete
+    }
+}
+
+/** Which profile each controller uses. Clicking a controller steps through the profiles. */
+class ControllersScreen(private val back: Screen) : Screen(Component.translatable("steamify.controllers.title")) {
+    private var layout = HeaderAndFooterLayout(this)
+    private var list: ScrollableLayout? = null
+    private var shown: Any? = null
+
+    override fun tick() {
+        if (Profiles.state() != shown) rebuildWidgets()
+    }
+
+    override fun init() {
+        shown = Profiles.state()
+        layout = HeaderAndFooterLayout(this)
+        layout.addTitleHeader(title, font)
+        val col = LinearLayout.vertical().spacing(4)
+        val known = Profiles.controllers()
+        if (known.isEmpty()) col.addChild(Button.builder(Component.translatable("steamify.controllers.none")) {}.width(W).build()).active = false
+        for (c in known) {
+            val row = LinearLayout.horizontal().spacing(4)
+            row.addChild(Button.builder(label(c)) {
+                val all = Profiles.all
+                Profiles.assign(c, all[(all.indexOf(Profiles.profileOf(c)) + 1) % all.size])
+                it.message = label(c)
+            }.width(W - 54).build())
+            row.addChild(Button.builder(Component.translatable("steamify.controllers.forget")) {
+                Profiles.forget(c)
+                rebuildWidgets()
+            }.width(50).tooltip(Tooltip.create(Component.translatable("steamify.controllers.forget.tooltip"))).build())
+            col.addChild(row)
+        }
+        list = layout.addToContents(ScrollableLayout(minecraft, col, layout.contentHeight))
+        layout.addToFooter(Button.builder(CommonComponents.GUI_DONE) { onClose() }.width(200).build())
+        layout.visitWidgets(::addRenderableWidget)
+        repositionElements()
+    }
+
+    private fun label(c: String): Component {
+        val name = Component.literal(Profiles.nameOf(c))
+        val shown = if (Profiles.inUse(c)) Component.translatable("steamify.controllers.inUse", name) else name
+        return Component.translatable("steamify.controllers.row", shown, Profiles.profileOf(c)?.name ?: "-")
+    }
+
+    override fun repositionElements() = arrangeScrolling(layout, list)
+
+    // Setting it rebuilds the profile list, so a switch made here shows there
+    override fun onClose() = minecraft.gui.setScreen(back)
+
+    private companion object {
+        const val W = 280
     }
 }
 

@@ -23,6 +23,7 @@ import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_MOTION
 import org.lwjgl.sdl.SDLEvents.SDL_EVENT_FINGER_UP
 import org.lwjgl.sdl.SDLGamepad.*
 import org.lwjgl.sdl.SDLInit.SDL_INIT_GAMEPAD
+import org.lwjgl.sdl.SDLProperties.SDL_GetBooleanProperty
 import org.lwjgl.sdl.SDLInit.SDL_InitSubSystem
 import org.lwjgl.sdl.SDLMouse.SDL_WarpMouseInWindow
 import org.lwjgl.sdl.SDLSensor.SDL_SENSOR_ACCEL
@@ -607,12 +608,14 @@ object Steamify : ClientModInitializer {
             }
         }
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("steamify", "hotbar_grid"), HotbarPad::render)
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("steamify", "binds"), BindsHud::render)
         ClientLifecycleEvents.CLIENT_STOPPING.register { if (pad != 0L) closePad() }
         ClientPlayerBlockBreakEvents.AFTER.register { _, _, _, _ -> haptic(Haptic.BLOCK_BREAK, left = false, right = true, ms = 40) }
         ScreenEvents.AFTER_INIT.register { _, screen, _, _ ->
             ScreenEvents.afterExtract(screen).register { s, g, _, _, _ ->
                 MenuPad.render(s, g)
                 Keyboard.render(s, g)
+                if (s !is OnboardingScreen) BindsHud.menu(s, g)
                 if (s is TitleScreen || s is PauseScreen) Battery.render(s, g)
             }
         }
@@ -623,6 +626,14 @@ object Steamify : ClientModInitializer {
     fun haptic(h: Haptic, left: Boolean, right: Boolean, ms: Int, scale: Double = 1.0) {
         val power = (Settings.level(h).coerceAtMost(1.0) * scale.coerceIn(0.0, 1.0) * 0xFFFF).toInt()
         if (pad == 0L || power <= 0) return
+        // Xbox One and Series pads have a motor in each trigger: the bow's goes to LT, mining's to RT
+        val lt = h == Haptic.BOW
+        val rt = h == Haptic.MINING || h == Haptic.BLOCK_BREAK
+        if (triggerRumble && (lt || rt)) {
+            // Trigger motors are small: a tick shorter than this isn't felt
+            SDL_RumbleGamepadTriggers(pad, (if (lt) power else 0).toShort(), (if (rt) power else 0).toShort(), maxOf(ms, 20))
+            return
+        }
         // Wind is a background hum: it waits out other rumbles instead of cutting them short
         val now = System.nanoTime()
         if (h == Haptic.FLIGHT || h == Haptic.FALLING) { if (now < rumbleBusyUntil) return }
@@ -905,12 +916,13 @@ object Steamify : ClientModInitializer {
         val lookTest = screen as? OnboardingScreen
         val lookTesting = lookTest?.testsLook() == true
         val playing = (!inMenu || lookTesting) && mc.isWindowActive
-        // Steam Controller convention: gyro steers only while the thumb rests on the right pad. Action sets
-        // can switch it to always on or off, e.g. off while a grip is let go (ratcheting)
+        // Steam Controller convention: gyro steers only while the thumb rests on the right pad. Without one
+        // (DualSense, Switch Pro) it's on while the controller is in use. Action sets can switch it to always on or off, e.g. off while
+        // a grip is let go (ratcheting)
         gyroActive = playing && when (ActionSets.gyro()) {
             ActionSet.Gyro.ALWAYS -> true
             ActionSet.Gyro.OFF -> false
-            else -> rightPad.down
+            else -> rightPad.down || !hasRightPad && controllerInHand()
         }
         var gYaw: Double
         var gPitch: Double
@@ -1003,12 +1015,16 @@ object Steamify : ClientModInitializer {
         if (!gyroActive) return
         synchronized(gyroLock) {
             // Camera degrees per degree of controller rotation, stored in tenths
-            val scale = Settings.effective(Tune.GYRO) / 10.0
+            // Acceleration ramps in between the two speeds: fast turns go further, slow aim stays precise
+            val fast = ((hypot(gyroSmooth.x, gyroSmooth.y) - ACCEL_SLOW) / (ACCEL_FAST - ACCEL_SLOW)).coerceIn(0.0, 1.0)
+            val scale = Settings.effective(Tune.GYRO) / 10.0 * (1 + Settings.effective(Tune.GYRO_ACCEL) / 100.0 * fast)
             gyroYaw += gyroSmooth.x * dt * scale
             gyroPitch += gyroSmooth.y * dt * scale
         }
     }
 
+    private const val ACCEL_SLOW = 20.0 // deg/s
+    private const val ACCEL_FAST = 120.0
     private const val HAND_TAU = 1.0 // seconds the in-hand score averages over
     private var handScore = 0.0
     @Volatile private var inHandByMotion = false
@@ -1172,6 +1188,8 @@ object Steamify : ClientModInitializer {
 
     private fun closePad() {
         releaseAll()
+        adaptiveTrigger(null)
+        HotbarPad.idle()
         SDL_CloseGamepad(pad)
         pad = 0L
         // The firmware's own watchdog takes seconds to bring desktop mode back; flip it now instead.
@@ -1203,10 +1221,12 @@ object Steamify : ClientModInitializer {
             scan()
         }
         // The controller in use is the one last touched: a press on another one switches to it
-        if (pad == 0L) others.entries.firstOrNull()?.let { (id, h) -> others.remove(id); return activate(h) }
+        // Back from alt-tab, the one in use before (padId outlives the close) rather than whichever SDL lists first
+        if (pad == 0L) (others.remove(padId) ?: others.keys.firstOrNull()?.let(others::remove))?.let { return activate(it) }
         others.entries.firstOrNull { (_, h) -> touched(h) }?.let { (id, h) ->
             others.remove(id)
             releaseAll()
+            adaptiveTrigger(null)
             hid.takeIf { it != 0L }?.let(::SDL_hid_close)
             hid = 0L
             SDL_SetGamepadSensorEnabled(pad, SDL_SENSOR_GYRO, false)
@@ -1237,7 +1257,19 @@ object Steamify : ClientModInitializer {
         }
         if (pad != 0L) seen -= SDL_GetGamepadID(pad)
         others.entries.removeAll { (id, h) -> (id !in seen).also { gone -> if (gone) SDL_CloseGamepad(h) } }
-        for (id in seen) if (id !in others) SDL_OpenGamepad(id).takeIf { it != 0L }?.let { others[id] = it }
+        for (id in seen) if (id !in others) SDL_OpenGamepad(id).takeIf { it != 0L }?.let {
+            others[id] = it
+            // Named in the Controllers screen even before it's picked up
+            SDL_GetGamepadName(it)?.let { n -> Profiles.seen(controllerId(it), n) }
+        }
+    }
+
+    // The serial tells two of the same model apart; without one, the model at least separates a Steam
+    // Controller from another gamepad
+    private fun controllerId(h: Long): String {
+        val serial = SDL_GetGamepadSerial(h)?.takeIf { it.isNotBlank() }
+        return "%04x:%04x".format(SDL_GetGamepadVendor(h).toInt() and 0xFFFF, SDL_GetGamepadProduct(h).toInt() and 0xFFFF) +
+            (serial?.let { ":$it" } ?: "")
     }
 
     private fun closeOthers() {
@@ -1257,6 +1289,44 @@ object Steamify : ClientModInitializer {
 
     // Read from SDL's event thread to filter gyro reports
     @Volatile private var padId = 0
+    var hasRightPad = true
+        private set
+    private var triggerRumble = false
+    private var dualSense = false
+
+    /** A Steam Controller or Steam Deck is connected, the hardware the trackpad hotbar is for. */
+    fun steamHardware(): Boolean {
+        val ids = SDL_GetGamepads() ?: return false
+        try {
+            // Steam Input's virtual gamepad (11ff) is Valve's too, but has no trackpads
+            return (ids.position() until ids.limit()).any { i ->
+                val id = ids.get(i)
+                SDL_GetGamepadVendorForID(id).toInt() and 0xFFFF == 0x28de && SDL_GetGamepadProductForID(id).toInt() and 0xFFFF != 0x11ff
+            }
+        } finally {
+            SDL_free(ids)
+        }
+    }
+
+    // DualSense output report, as SDL_SendGamepadEffect takes it: enable bits at 0, left trigger effect at 21
+    private val effectReport = BufferUtils.createByteBuffer(47)
+    private var triggerEffect: List<Int>? = null
+
+    /** DualSense adaptive trigger on LT: an effect mode and its parameters, or null for none. Sent only on change. */
+    fun adaptiveTrigger(effect: List<Int>?) {
+        if (!dualSense || pad == 0L || effect == triggerEffect) return
+        triggerEffect = effect
+        for (i in 0 until effectReport.capacity()) effectReport.put(i, 0)
+        effectReport.put(0, 0x08)
+        (effect ?: listOf(TRIGGER_OFF)).forEachIndexed { i, b -> effectReport.put(21 + i, b.toByte()) }
+        SDL_SendGamepadEffect(pad, effectReport)
+    }
+
+    const val TRIGGER_OFF = 0x05
+    /** Resistance from a position (0-255) to the end of the pull: mode, start, force. */
+    const val TRIGGER_RESIST = 0x01
+    /** Resistance between two positions, then it gives way like a gun's trigger: mode, start, end, force. */
+    const val TRIGGER_BREAK = 0x02
 
     private fun activate(handle: Long): Boolean {
         pad = handle
@@ -1265,6 +1335,12 @@ object Steamify : ClientModInitializer {
         SDL_SetGamepadSensorEnabled(pad, SDL_SENSOR_ACCEL, true)
         hasGravity = false
         gyroTs = 0L
+        hasRightPad = SDL_GetNumGamepadTouchpads(pad) >= 2
+        val type = SDL_GetGamepadType(pad)
+        Bindings.nameFor(type)
+        triggerRumble = SDL_GetBooleanProperty(SDL_GetGamepadProperties(pad), SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN, false)
+        dualSense = type == SDL_GAMEPAD_TYPE_PS5
+        triggerEffect = null
         val vid = SDL_GetGamepadVendor(pad).toInt() and 0xFFFF
         val pid = SDL_GetGamepadProduct(pad).toInt() and 0xFFFF
         if (vid == 0x28de && pid in TRITON_PIDS) hid = SDL_GetGamepadPath(pad)?.let { SDL_hid_open_path(it) } ?: 0L
@@ -1275,10 +1351,7 @@ object Steamify : ClientModInitializer {
             Bindings.swallowRequested = true
             releasedForFocus = false
         } else log.info("Controller connected: {} ({} touchpads)", SDL_GetGamepadName(pad), SDL_GetNumGamepadTouchpads(pad))
-        // The serial tells two of the same model apart; without one, the model at least separates a Steam
-        // Controller from another gamepad
-        val serial = SDL_GetGamepadSerial(pad)?.takeIf { it.isNotBlank() }
-        val id = "%04x:%04x".format(vid, pid) + (serial?.let { ":$it" } ?: "")
+        val id = controllerId(pad)
         // Each gyro drifts its own way. A different controller starts from its own calibration, or from zero and
         // gets asked to calibrate
         if (id != Settings.controller) {
@@ -1286,7 +1359,7 @@ object Steamify : ClientModInitializer {
             applyGyroBias(Settings.gyroBias ?: DoubleArray(3))
             calibrationAsked = false
         }
-        Profiles.connected(id)?.let {
+        Profiles.connected(id, SDL_GetGamepadName(pad) ?: "Controller")?.let {
             SystemToast.addOrUpdate(mc.gui.toastManager(), profileToast,
                 Component.translatable("steamify.profiles.switched"), Component.literal(it.name))
         }

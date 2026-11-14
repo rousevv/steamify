@@ -354,7 +354,33 @@ object Bindings {
     /** Replaces one bind's gesture, from BindScreen. */
     fun setGesture(m: KeyMapping, i: Int, g: Gesture) = set(m, current(m).toMutableList().apply { this[i] = this[i].copy(gesture = g) })
 
-    fun name(c: Combo) = c.joinToString("+") { names.getOrElse(it) { "#$it" } }
+    fun name(c: Combo) = c.joinToString("+") { padNames[it] ?: names.getOrElse(it) { "#$it" } }
+
+    // What's printed on the controller in hand, where it differs from the Steam Controller's names
+    private var padNames: Map<Int, String> = emptyMap()
+    private val FACE = listOf("", "A", "B", "X", "Y", "✕", "○", "□", "△")
+
+    /** Picks names for this SDL gamepad type. SDL knows where Nintendo puts A and B, so those follow the hardware. */
+    fun nameFor(type: Int) {
+        val face = (SDL_GAMEPAD_BUTTON_SOUTH..SDL_GAMEPAD_BUTTON_NORTH).associateWith { FACE[SDL_GetGamepadButtonLabelForType(type, it)] }
+        padNames = face.filterValues { it.isNotEmpty() } + when (type) {
+            SDL_GAMEPAD_TYPE_PS3, SDL_GAMEPAD_TYPE_PS4, SDL_GAMEPAD_TYPE_PS5 -> mapOf(
+                SDL_GAMEPAD_BUTTON_BACK to if (type == SDL_GAMEPAD_TYPE_PS5) "Create" else "Share",
+                SDL_GAMEPAD_BUTTON_GUIDE to "PS", SDL_GAMEPAD_BUTTON_START to "Options",
+                SDL_GAMEPAD_BUTTON_LEFT_SHOULDER to "L1", SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER to "R1", LT to "L2", RT to "R2",
+                SDL_GAMEPAD_BUTTON_TOUCHPAD to "Touchpad", SDL_GAMEPAD_BUTTON_MISC1 to "Mute",
+            )
+            in SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO..SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR -> mapOf(
+                SDL_GAMEPAD_BUTTON_BACK to "-", SDL_GAMEPAD_BUTTON_GUIDE to "Home", SDL_GAMEPAD_BUTTON_START to "+",
+                SDL_GAMEPAD_BUTTON_LEFT_SHOULDER to "L", SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER to "R", LT to "ZL", RT to "ZR",
+                SDL_GAMEPAD_BUTTON_MISC1 to "Capture",
+            )
+            SDL_GAMEPAD_TYPE_XBOX360 -> mapOf(SDL_GAMEPAD_BUTTON_BACK to "Back", SDL_GAMEPAD_BUTTON_GUIDE to "Xbox", SDL_GAMEPAD_BUTTON_START to "Start")
+            SDL_GAMEPAD_TYPE_XBOXONE -> mapOf(SDL_GAMEPAD_BUTTON_GUIDE to "Xbox", SDL_GAMEPAD_BUTTON_MISC1 to "Share")
+            else -> emptyMap()
+        }
+        revision++
+    }
 
     fun names(presses: List<Press>) = presses.joinToString(" / ") { name(it.combo) + it.gesture.tag }
 

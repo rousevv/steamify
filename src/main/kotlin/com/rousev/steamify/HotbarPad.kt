@@ -75,8 +75,8 @@ object HotbarPad {
     private val HOTBAR = Identifier.withDefaultNamespace("hud/hotbar")
     private val SELECTION = Identifier.withDefaultNamespace("hud/hotbar_selection")
     private const val STRIDE = 20 // one slot of vanilla's hotbar sprite, without the sprite's black outer border
-    private const val SIZE = 3 * STRIDE + 2 // plus our own 1px outline around the whole grid
-    private const val MARGIN = 4
+    const val SIZE = 3 * STRIDE + 2 // plus our own 1px outline around the whole grid
+    const val MARGIN = 4
 
     /** Corner placement shows the grid all the time and stands in for vanilla's hotbar strip. */
     fun replacesHotbar(): Boolean {
@@ -138,21 +138,24 @@ object HotbarPad {
 
     /**
      * Setup guide: the hotbar where the current settings put it in game, with a totem in the offhand and the
-     * left pad picking slots live. The center grid is shown all the time so its spot is visible.
+     * left pad picking slots live. The center grid is shown all the time so its spot is visible. Not live: just
+     * what's on screen while the pad isn't touched, as a backdrop for other previews.
      */
-    fun preview(g: GuiGraphicsExtractor) {
+    fun preview(g: GuiGraphicsExtractor, live: Boolean = true) {
         val w = g.guiWidth()
         val h = g.guiHeight()
         val strip = Settings[Flag.HOTBAR_STRIP]
         val spot = Settings.gridSpot
         val t = Steamify.leftPad
-        if (t.down) {
-            col = cell(t.x, if (strip) 9 else 3, col)
-            row = if (strip) 0 else cell(t.y, 3, row)
-            previewSlot = row * 3 + col
-        } else {
-            col = -1
-            row = -1
+        if (live) {
+            if (t.down) {
+                col = cell(t.x, if (strip) 9 else 3, col)
+                row = if (strip) 0 else cell(t.y, 3, row)
+                previewSlot = row * 3 + col
+            } else {
+                col = -1
+                row = -1
+            }
         }
         // Vanilla's strip stays unless a corner grid replaces it
         if (strip || spot == GridSpot.CENTER) {
@@ -162,7 +165,7 @@ object HotbarPad {
             g.blitSprite(RenderPipelines.GUI_TEXTURED, OFFHAND, x - 29, h - 23, 29, 24)
             totem(g, x - 26, h - 19)
         }
-        if (strip) return
+        if (strip || !live && spot == GridSpot.CENTER) return
         val (x0, y0) = origin(spot, w, h)
         cells(g, x0, y0, 3)
         if (spot != GridSpot.CENTER) {
@@ -174,7 +177,7 @@ object HotbarPad {
         }
         selection(g, x0 - 1 + previewSlot % 3 * STRIDE, y0 - 1 + previewSlot / 3 * STRIDE)
         fun fit(v: Float) = ((v - EDGE) / (1 - 2 * EDGE)).coerceIn(0f, 1f) * SIZE
-        if (t.down) Keyboard.dot(g, x0 + fit(t.x).toInt(), y0 + fit(t.y).toInt(), 0xFF5AA8FF.toInt())
+        if (live && t.down) Keyboard.dot(g, x0 + fit(t.x).toInt(), y0 + fit(t.y).toInt(), 0xFF5AA8FF.toInt())
     }
 
     // Top of the open chat's lines, so a bottom left grid can step over them. Off screen when chat is closed

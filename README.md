@@ -6,7 +6,8 @@ It's client-side only and works on any server (however it may flag some servers'
 
 ## Aiming
 
-- Gyro aiming while your thumb rests on the right trackpad, the way steam does it by default. Action sets can switch it to always on or off.
+- Gyro aiming while your thumb rests on the right trackpad, the way steam does it by default. On controllers without a right trackpad (DualSense, Switch Pro) it's always on. Action sets can switch it to always on or off.
+- Optional gyro acceleration, so fast turns go further while slow aiming stays precise.
 - The right trackpad turns the camera like a mouse, and a flick keeps it spinning like a trackball. The right stick works too, but like you didn't buy a steam controller to NOT use the trackpads did you?
 - Horizontal Turning makes left and right follow the horizon however you hold the controller, so yawing or rolling it both turn, like Steam Input's Player Space.
 - Steady Aim lowers gyro sensitivity while you draw a bow or aim a crossbow or trident, so its easier to line up shots.
@@ -35,7 +36,7 @@ I personally use it for zooming (R5 as the trigger, my zoom keybind held while i
 
 ## Profiles
 
-Profiles are whole configs (binds, action sets and Controller Settings) you switch between with one click. Picking up a different controller switches to its profile automatically. Profiles and action sets can be copied as one line of text and pasted into someone else's game.
+Profiles are whole configs (binds, action sets and Controller Settings) you switch between with one click. Every controller gets its own profile the first time it connects, and picking it up switches to that profile automatically. Profiles and action sets can be copied as one line of text and pasted into someone else's game.
 
 ## Haptics
 
@@ -44,12 +45,13 @@ There's customizable rumble for footsteps, damage, landing, block breaking, mini
 ## Other stuff
 
 - There's a first time onboarding that helps you configure the mod in a way thats comfortable for you
+- Optional button hints in the bottom right corner for what you can do right now, like Bedrock Edition
 - Battery level on the title and pause screens, with low battery warnings
 - Translated into Bulgarian, German, Hebrew, Russian, Ukrainian, French, Spanish, Portuguese, Italian, Swedish, Czech, Greek, Turkish, Arabic and Persian, plus Pirate Speak, Upside Down, Shakespearean English and Anglish
 
 ## Controllers
 
-Steamify is built for the Steam Controller (2026). The original Steam Controller should work too, but it's untested. Other controllers that support SDL, like DualSense, get the stick and button features plus whatever their hardware has. With more than one connected, Steamify uses whichever you touched last. The Steam Deck works too, trackpads and gyro included, and you can type on the on-screen keyboard with its touchscreen. Play it in desktop mode with Steam closed.
+Steamify is built for the Steam Controller (2026) and Steam Deck. The original Steam Controller should work too, but it's untested. Other controllers that support SDL (DualSense, Switch Pro, Xbox and so on) work too, with gyro if. With more than one connected, Steamify uses whichever you touched last. If you're using the steam deck, play it in desktop mode with Steam closed so it doesn't cause double inputs.
 
 If Steam is running, turn Steam Input off for Minecraft or your launcher. Otherwise Steam grabs the controller first and the game only sees a plain gamepad.
 
@@ -58,3 +60,4 @@ If Steam is running, turn Steam Input off for Minecraft or your launcher. Otherw
 - Minecraft 26.3 with Fabric Loader 0.20.1 or newer
 - Fabric API
 - Fabric Language Kotlin
+- On Linux, Steam's udev rules (the `steam-devices` package, or Steam itself) so the game can read the controller

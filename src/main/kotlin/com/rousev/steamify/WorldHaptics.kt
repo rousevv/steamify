@@ -20,6 +20,7 @@ object WorldHaptics {
     private var wasCharged = false
     private var wasBiting = false
     private var crackStage = -1
+    private const val CROSSBOW_LOAD_TICKS = 25.0 // without Quick Charge
 
     // Heartbeat: "lub" then a softer "dub" shortly after
     private const val HEART_HP = 6f // 3 hearts and below
@@ -29,8 +30,11 @@ object WorldHaptics {
 
     /** Once per frame in game. */
     fun update(now: Long) {
-        val p = mc.player ?: return
-        if (mc.gui.screen() != null) return
+        val p = mc.player
+        if (p == null || mc.gui.screen() != null) {
+            Steamify.adaptiveTrigger(null)
+            return
+        }
 
         // Bow and trident draw
         val anim = if (p.isUsingItem) p.useItem.useAnimation else null
@@ -50,6 +54,21 @@ object WorldHaptics {
         val charged = CrossbowItem.isCharged(p.mainHandItem) || CrossbowItem.isCharged(p.offhandItem)
         if (charged && !wasCharged) Steamify.feedback(Haptic.BOW, left = true, right = true, click = true)
         wasCharged = charged
+
+        // DualSense: LT stiffens as a bow, crossbow or trident draws, and a loaded crossbow's trigger gives way like a gun's
+        val strength = Settings.level(Haptic.BOW).coerceAtMost(1.0)
+        val draw = when (anim) {
+            ItemUseAnimation.BOW -> t / BowItem.MAX_DRAW_DURATION.toDouble()
+            ItemUseAnimation.TRIDENT -> t / TridentItem.THROW_THRESHOLD_TIME.toDouble()
+            ItemUseAnimation.CROSSBOW -> t / CROSSBOW_LOAD_TICKS
+            else -> null
+        }
+        Steamify.adaptiveTrigger(when {
+            strength <= 0 -> null
+            draw != null -> listOf(Steamify.TRIGGER_RESIST, 0, (strength * (60 + 195 * draw.coerceAtMost(1.0))).toInt())
+            charged -> listOf(Steamify.TRIGGER_BREAK, 80, 160, (strength * 255).toInt())
+            else -> null
+        })
 
         // Fish on the line
         val hook = p.fishing

@@ -22,13 +22,14 @@ class ControllerOptionsScreen(last: Screen, options: Options) :
         )
         section("sensitivity",
             tune(Tune.STICK_SPEED, ::percent), tune(Tune.PAD_SPEED, ::percent),
-            tune(Tune.PAD_FRICTION, ::percent), tune(Tune.GYRO, ::multiplier), tune(Tune.STICK_DEADZONE, ::percent),
+            tune(Tune.PAD_FRICTION, ::percent), tune(Tune.GYRO, ::multiplier), tune(Tune.GYRO_ACCEL, ::percent), tune(Tune.STICK_DEADZONE, ::percent),
             tune(Tune.CURSOR_SPEED, ::percent), flag(Flag.INVERT_Y),
         )
         section("binds", *bindTunes())
         list?.addHeader(Component.translatable("steamify.options.sets"))
         list?.addBig(Button.builder(Component.translatable("steamify.sets.title")) { minecraft.gui.setScreen(ActionSetsScreen(this)) }
             .tooltip(Tooltip.create(Component.translatable("steamify.options.sets.tooltip"))).build())
+        section("hud", flag(Flag.SHOW_BINDS))
         section("hotbar", flag(Flag.HOTBAR_STRIP), OptionInstance(
             "steamify.option.hotbar.gridSpot", tooltip("steamify.option.hotbar.gridSpot"),
             { _, v: GridSpot -> Component.translatable("steamify.gridSpot.${v.key}") }, // the cycle button adds the caption itself

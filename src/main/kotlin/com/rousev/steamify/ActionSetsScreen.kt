@@ -210,7 +210,7 @@ class ActionSetScreen(private val last: Screen, private val set: ActionSet) : Sc
 class SetTunesScreen(last: Screen, private val set: ActionSet) :
     OptionsSubScreen(last, Minecraft.getInstance().options, Component.translatable("steamify.sets.tunes.title", set.name)) {
     private val shown = listOf(
-        Tune.STICK_SPEED, Tune.PAD_SPEED, Tune.PAD_FRICTION, Tune.GYRO, Tune.STICK_DEADZONE, Tune.STEADY_AIM_REDUCTION, Tune.AIM_ASSIST,
+        Tune.STICK_SPEED, Tune.PAD_SPEED, Tune.PAD_FRICTION, Tune.GYRO, Tune.GYRO_ACCEL, Tune.STICK_DEADZONE, Tune.STEADY_AIM_REDUCTION, Tune.AIM_ASSIST,
         Tune.STICK_EDGE, Tune.PAD_EDGE, Tune.SWIPE_STEP,
     )
 
