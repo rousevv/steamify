@@ -179,6 +179,8 @@
   "steamify.option.look.gyro.tooltip": "چرخش دوربین به ازای چرخش دسته. در 1.0x دوربین دقیقاً به اندازهٔ دسته می‌چرخد",
   "steamify.option.look.gyroAccel": "شتاب ژیروسکوپ",
   "steamify.option.look.gyroAccel.tooltip": "حساسیت بیشتر برای چرخش‌های سریع. در ۱۰۰٪ چرخاندن سریع دسته دوربین را تا دو برابر می‌چرخاند و حرکت‌های آرام حساسیت عادی را برای نشانه‌گیری دقیق نگه می‌دارند",
+  "steamify.option.look.gyroVertical": "مقیاس عمودی ژیروسکوپ",
+  "steamify.option.look.gyroVertical.tooltip": "میزان چرخش دوربین با کج کردن دسته به بالا و پایین، در مقایسه با چرخاندن آن به چپ و راست. در ۵۰٪، نشانه‌گیری عمودی نصف حساسیت را دارد",
   "steamify.option.look.stickDeadzone": "ناحیهٔ مردهٔ استیک",
   "steamify.option.look.stickDeadzone.tooltip": "استیک قبل از به حساب آمدن چقدر باید حرکت کند. اگر دوربین یا بازیکن خودبه‌خود می‌لغزد، بیشترش کن",
   "steamify.option.menu.cursorSpeed": "سرعت نشانگر در منوها",

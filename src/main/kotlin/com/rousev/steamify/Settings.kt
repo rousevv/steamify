@@ -46,6 +46,8 @@ enum class Tune(val key: String, val default: Int, val min: Int, val max: Int) {
     GYRO("look.gyro", 15, 5, 50),
     // Extra gyro sensitivity at full speed, percent. Slow turns keep the base sensitivity
     GYRO_ACCEL("look.gyroAccel", 0, 0, 200),
+    // Percent of Gyro Sensitivity for pitch, like Steam Input's vertical scale
+    GYRO_VERTICAL("look.gyroVertical", 100, 25, 200),
     CURSOR_SPEED("menu.cursorSpeed", 100, 25, 300),
     STEADY_AIM_REDUCTION("gyro.steadyAimReduction", 50, 10, 90),
     AIM_ASSIST("aim.assistStrength", 40, 5, 100),

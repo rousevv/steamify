@@ -178,6 +178,8 @@
   "steamify.option.look.gyro.tooltip": "Camera rotation per contraption rotation. 1.0x turns th' camera exactly as far as ye turn th' contraption",
   "steamify.option.look.gyroAccel": "Gyro Quickening",
   "steamify.option.look.gyroAccel.tooltip": "More sensitivity for swift turns. At 100%, turning the controller swiftly doth turn the view up to twice as far, whilst slow movements keep the usual sensitivity for a true aim",
+  "steamify.option.look.gyroVertical": "Up 'n' Down Gyro Measure",
+  "steamify.option.look.gyroVertical.tooltip": "How far tiltin' yer controller up 'n' down swings the spyglass, against swingin' it port 'n' starboard. At 50%, aimin' up 'n' down be half as touchy",
   "steamify.option.look.stickDeadzone": "Tiller Deadzone",
   "steamify.option.look.stickDeadzone.tooltip": "How far a tiller must move before it counts. Raise it if th' camera or sailor drifts on its own",
   "steamify.option.menu.cursorSpeed": "Menu Cursor Speed",

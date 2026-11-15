@@ -179,6 +179,8 @@
   "steamify.option.look.gyro.tooltip": "Rotazione della telecamera per rotazione del controller. A 1.0x la telecamera gira esattamente quanto giri il controller",
   "steamify.option.look.gyroAccel": "Accelerazione giroscopio",
   "steamify.option.look.gyroAccel.tooltip": "Sensibilità extra per le rotazioni veloci. Al 100%, girare velocemente il controller ruota la visuale fino al doppio, mentre i movimenti lenti mantengono la sensibilità normale per mirare con precisione",
+  "steamify.option.look.gyroVertical": "Scala verticale giroscopio",
+  "steamify.option.look.gyroVertical.tooltip": "Quanto l'inclinazione del controller in alto e in basso ruota la visuale, rispetto a ruotarlo a sinistra e a destra. Al 50%, la mira verticale è sensibile la metà",
   "steamify.option.look.stickDeadzone": "Zona morta degli stick",
   "steamify.option.look.stickDeadzone.tooltip": "Quanto deve muoversi uno stick prima che conti. Aumentala se la telecamera o il giocatore si spostano da soli",
   "steamify.option.menu.cursorSpeed": "Velocità del cursore nei menu",

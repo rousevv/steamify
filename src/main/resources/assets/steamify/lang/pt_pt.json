@@ -179,6 +179,8 @@
   "steamify.option.look.gyro.tooltip": "Giro da câmera por giro do controle. Em 1.0x a câmera gira exatamente o quanto você gira o controle",
   "steamify.option.look.gyroAccel": "Aceleração do giroscópio",
   "steamify.option.look.gyroAccel.tooltip": "Sensibilidade extra para viragens rápidas. A 100%, rodar o comando depressa roda a câmara até ao dobro, e os movimentos lentos mantêm a sensibilidade normal para apontar com precisão",
+  "steamify.option.look.gyroVertical": "Escala vertical do giroscópio",
+  "steamify.option.look.gyroVertical.tooltip": "Quanto inclinar o comando para cima e para baixo roda a câmara, comparado a rodá-lo para a esquerda e direita. A 50%, a mira vertical tem metade da sensibilidade",
   "steamify.option.look.stickDeadzone": "Zona morta dos analógicos",
   "steamify.option.look.stickDeadzone.tooltip": "Quanto um analógico precisa se mover antes de contar. Aumente se a câmera ou o jogador se moverem sozinhos",
   "steamify.option.menu.cursorSpeed": "Velocidade do cursor nos menus",

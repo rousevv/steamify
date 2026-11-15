@@ -179,6 +179,8 @@
   "steamify.option.look.gyro.tooltip": "دوران الكاميرا مقابل دوران يد التحكم. عند 1.0x تدور الكاميرا بقدر دوران يد التحكم تمامًا",
   "steamify.option.look.gyroAccel": "تسارع الجيروسكوب",
   "steamify.option.look.gyroAccel.tooltip": "حساسية إضافية للدوران السريع. عند 100٪ يؤدي تدوير وحدة التحكم بسرعة إلى تدوير الكاميرا حتى الضعف، بينما تحتفظ الحركات البطيئة بالحساسية العادية للتصويب بدقة",
+  "steamify.option.look.gyroVertical": "مقياس الجيروسكوب العمودي",
+  "steamify.option.look.gyroVertical.tooltip": "مدى دوران الكاميرا عند إمالة وحدة التحكم لأعلى ولأسفل مقارنة بتدويرها يمينًا ويسارًا. عند 50% يصبح التصويب العمودي بنصف الحساسية",
   "steamify.option.look.stickDeadzone": "المنطقة الميتة للعصا",
   "steamify.option.look.stickDeadzone.tooltip": "مقدار ما يجب أن تتحركه العصا قبل احتسابه. ارفعها إذا انجرفت الكاميرا أو اللاعب وحدهما",
   "steamify.option.menu.cursorSpeed": "سرعة المؤشر في القوائم",

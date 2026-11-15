@@ -1019,7 +1019,7 @@ object Steamify : ClientModInitializer {
             val fast = ((hypot(gyroSmooth.x, gyroSmooth.y) - ACCEL_SLOW) / (ACCEL_FAST - ACCEL_SLOW)).coerceIn(0.0, 1.0)
             val scale = Settings.effective(Tune.GYRO) / 10.0 * (1 + Settings.effective(Tune.GYRO_ACCEL) / 100.0 * fast)
             gyroYaw += gyroSmooth.x * dt * scale
-            gyroPitch += gyroSmooth.y * dt * scale
+            gyroPitch += gyroSmooth.y * dt * scale * Settings.effective(Tune.GYRO_VERTICAL) / 100.0
         }
     }
 

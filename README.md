@@ -7,7 +7,7 @@ It's client-side only and works on any server (however it may flag some servers'
 ## Aiming
 
 - Gyro aiming while your thumb rests on the right trackpad, the way steam does it by default. On controllers without a right trackpad (DualSense, Switch Pro) it's always on. Action sets can switch it to always on or off.
-- Optional gyro acceleration, so fast turns go further while slow aiming stays precise.
+- Optional gyro acceleration, so fast turns go further while slow aiming stays precise, and a separate vertical gyro scale.
 - The right trackpad turns the camera like a mouse, and a flick keeps it spinning like a trackball. The right stick works too, but like you didn't buy a steam controller to NOT use the trackpads did you?
 - Horizontal Turning makes left and right follow the horizon however you hold the controller, so yawing or rolling it both turn, like Steam Input's Player Space.
 - Steady Aim lowers gyro sensitivity while you draw a bow or aim a crossbow or trident, so its easier to line up shots.

@@ -179,6 +179,8 @@
   "steamify.option.look.gyro.tooltip": "סיבוב המצלמה לכל סיבוב של הבקר. ב-1.0x המצלמה מסתובבת בדיוק כמו הבקר",
   "steamify.option.look.gyroAccel": "האצת ג'ירו",
   "steamify.option.look.gyroAccel.tooltip": "רגישות נוספת לסיבובים מהירים. ב-100%, סיבוב מהיר של הבקר מסובב את המצלמה עד פי שניים, ותנועות איטיות שומרות על הרגישות הרגילה לכיוון מדויק",
+  "steamify.option.look.gyroVertical": "קנה מידה אנכי של ג'ירו",
+  "steamify.option.look.gyroVertical.tooltip": "כמה הטיית הבקר למעלה ולמטה מסובבת את המצלמה, בהשוואה לסיבוב שמאלה וימינה. ב־50%, הכיוון האנכי רגיש בחצי",
   "steamify.option.look.stickDeadzone": "אזור מת של הסטיק",
   "steamify.option.look.stickDeadzone.tooltip": "כמה הסטיק צריך לזוז לפני שזה נחשב. הגדל אם המצלמה או השחקן זזים מעצמם",
   "steamify.option.menu.cursorSpeed": "מהירות הסמן בתפריטים",

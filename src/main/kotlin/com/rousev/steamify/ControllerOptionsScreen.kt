@@ -22,7 +22,7 @@ class ControllerOptionsScreen(last: Screen, options: Options) :
         )
         section("sensitivity",
             tune(Tune.STICK_SPEED, ::percent), tune(Tune.PAD_SPEED, ::percent),
-            tune(Tune.PAD_FRICTION, ::percent), tune(Tune.GYRO, ::multiplier), tune(Tune.GYRO_ACCEL, ::percent), tune(Tune.STICK_DEADZONE, ::percent),
+            tune(Tune.PAD_FRICTION, ::percent), tune(Tune.GYRO, ::multiplier), tune(Tune.GYRO_VERTICAL, ::percent), tune(Tune.GYRO_ACCEL, ::percent), tune(Tune.STICK_DEADZONE, ::percent),
             tune(Tune.CURSOR_SPEED, ::percent), flag(Flag.INVERT_Y),
         )
         section("binds", *bindTunes())

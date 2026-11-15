@@ -179,6 +179,8 @@
   "steamify.option.look.gyro.tooltip": "Kontrolcü dönüşü başına kamera dönüşü. 1.0x'te kamera tam olarak kontrolcü kadar döner",
   "steamify.option.look.gyroAccel": "Jiroskop İvmesi",
   "steamify.option.look.gyroAccel.tooltip": "Hızlı dönüşler için ek hassasiyet. %100'de kumandayı hızlı çevirmek kamerayı iki katına kadar döndürür, yavaş hareketler hassas nişan için normal hassasiyette kalır",
+  "steamify.option.look.gyroVertical": "Dikey Jiroskop Ölçeği",
+  "steamify.option.look.gyroVertical.tooltip": "Kumandayı yukarı ve aşağı eğmenin kamerayı, sola ve sağa çevirmeye kıyasla ne kadar döndürdüğü. %50'de dikey nişan yarı hassasiyettedir",
   "steamify.option.look.stickDeadzone": "Çubuk ölü bölgesi",
   "steamify.option.look.stickDeadzone.tooltip": "Bir çubuğun sayılmadan önce ne kadar hareket etmesi gerektiği. Kamera veya oyuncu kendi kendine kayıyorsa artır",
   "steamify.option.menu.cursorSpeed": "Menü imleç hızı",

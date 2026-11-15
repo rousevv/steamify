@@ -179,6 +179,8 @@
   "steamify.option.look.gyro.tooltip": "Kameravridning per vridning av handkontrollen. Vid 1.0x vrids kameran exakt lika långt som handkontrollen",
   "steamify.option.look.gyroAccel": "Gyroacceleration",
   "steamify.option.look.gyroAccel.tooltip": "Extra känslighet för snabba vridningar. Vid 100% vrider en snabb rörelse kameran upp till dubbelt så långt, medan långsamma rörelser behåller den vanliga känsligheten för exakt sikte",
+  "steamify.option.look.gyroVertical": "Vertikal gyroskala",
+  "steamify.option.look.gyroVertical.tooltip": "Hur långt det vrider kameran att luta handkontrollen upp och ner, jämfört med att vrida den åt vänster och höger. Vid 50 % är det vertikala siktet hälften så känsligt",
   "steamify.option.look.stickDeadzone": "Spakens dödzon",
   "steamify.option.look.stickDeadzone.tooltip": "Hur långt en spak måste röras innan det räknas. Höj den om kameran eller spelaren glider av sig själv",
   "steamify.option.menu.cursorSpeed": "Markörhastighet i menyer",

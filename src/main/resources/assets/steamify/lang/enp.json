@@ -178,6 +178,8 @@
   "steamify.option.look.gyro.tooltip": "Eye turning per steerer turning. 1.0x turns the eye just as far as you turn the steerer",
   "steamify.option.look.gyroAccel": "Gyro Hastenin'",
   "steamify.option.look.gyroAccel.tooltip": "More sensitivity fer quick turns. At 100%, whippin' the controller 'round turns yer spyglass up to twice as far, while slow movements keep normal sensitivity fer a true aim",
+  "steamify.option.look.gyroVertical": "Upright Gyro Scale",
+  "steamify.option.look.gyroVertical.tooltip": "How far tilting the controller up and down turns the sightframe, beside turning it left and right. At 50%, upright aiming is half as keen",
   "steamify.option.look.stickDeadzone": "Stick Deadzone",
   "steamify.option.look.stickDeadzone.tooltip": "How far a stick must move before it counts. Raise it if the eye or player drifts on its own",
   "steamify.option.menu.cursorSpeed": "Bill Pointer Speed",

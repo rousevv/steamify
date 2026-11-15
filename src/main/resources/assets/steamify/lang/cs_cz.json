@@ -179,6 +179,8 @@
   "steamify.option.look.gyro.tooltip": "Otočení kamery na otočení ovladače. Při 1.0x se kamera otočí přesně o tolik jako ovladač",
   "steamify.option.look.gyroAccel": "Zrychlení gyroskopu",
   "steamify.option.look.gyroAccel.tooltip": "Vyšší citlivost pro rychlá otočení. Při 100 % otočí rychlý pohyb ovladače kameru až dvakrát dál, pomalé pohyby si ponechají normální citlivost pro přesné míření",
+  "steamify.option.look.gyroVertical": "Svislé měřítko gyroskopu",
+  "steamify.option.look.gyroVertical.tooltip": "Jak moc naklánění ovladače nahoru a dolů otáčí kamerou ve srovnání s otáčením doleva a doprava. Při 50 % je svislé míření poloviční citlivosti",
   "steamify.option.look.stickDeadzone": "Mrtvá zóna páček",
   "steamify.option.look.stickDeadzone.tooltip": "Jak moc se páčka musí pohnout, než se to počítá. Zvyš ji, pokud kamera nebo hráč ujíždí sám",
   "steamify.option.menu.cursorSpeed": "Rychlost kurzoru v nabídkách",
