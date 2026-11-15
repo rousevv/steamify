@@ -83,10 +83,11 @@ object ActionSets {
                 (s.places.isEmpty() || place in s.places)
         }
         for (s in sets) {
-            // Out of place, a Toggle set's button does nothing (Y in a menu won't flip an in-game set)
-            if (s.trigger.isEmpty() || !s.eligible) continue
+            if (s.trigger.isEmpty()) continue
             val down = s.trigger.all(held)
-            if (s.mode == ActionSet.Mode.TOGGLE && down && !s.wasHeld) s.toggled = !s.toggled
+            // Out of place, a Toggle set's button does nothing (Y in a menu won't flip an in-game set). The press is
+            // still followed there, or one held into a menu would swallow the next press back in game
+            if (s.eligible && s.mode == ActionSet.Mode.TOGGLE && down && !s.wasHeld) s.toggled = !s.toggled
             s.wasHeld = down
         }
         val now = sets.filter { s ->

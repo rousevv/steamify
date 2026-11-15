@@ -122,6 +122,7 @@ object Profiles {
                 return null
             }
             val p = create(if (steamController(id)) "Steam Controller" else nameOf(id))
+            links[id] = p.id // by hand: it's locked already, and link() leaves a locked controller alone
             switchTo(p)
             return p
         }

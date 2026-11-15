@@ -187,7 +187,8 @@ object Bindings {
         for (name in p.stringPropertyNames()) overrides[name] = parse(p.getProperty(name))
     }
 
-    fun parseCombo(v: String): Combo = v.split('+').mapNotNull { it.trim().toIntOrNull() }.sorted()
+    // Ids this version doesn't have (a paste from a newer one, a damaged file) are dropped: they index the input arrays
+    fun parseCombo(v: String): Combo = v.split('+').mapNotNull { it.trim().toIntOrNull() }.filter { it in 0 until INPUT_COUNT }.sorted()
 
     fun parse(v: String): List<Press> = v.split(',').mapNotNull { e ->
         val combo = parseCombo(e.substringBefore('@'))

@@ -376,8 +376,8 @@ object Steamify : ClientModInitializer {
     private var heldBySets: Set<String> = emptySet()
 
     // Game binds for these mappings: regular presses, gestures, swipes, and what action sets hold or tap
-    private fun driveMappings(mappings: List<KeyMapping>, now: Long) {
-        val presses = mappings.associateWith { Bindings.effective(it) }
+    private fun driveMappings(mappings: List<KeyMapping>, now: Long, binds: (KeyMapping) -> List<Press> = Bindings::effective) {
+        val presses = mappings.associateWith(binds)
         // Swipe combos never sit held, so they can't make a smaller combo wait to see if it grows
         val all = presses.values.flatMap { ps -> ps.map { it.combo }.filterNot { c -> c.any(Bindings::isSwipe) } }
         val doubles = presses.values.flatMap { ps -> ps.filter { it.gesture == Gesture.DOUBLE }.map { it.combo } }.toSet()
@@ -568,6 +568,7 @@ object Steamify : ClientModInitializer {
     private const val PAD_TICK_DISTANCE = 0.08
 
     private var wasInMenu = false
+    private var navStickReady = false // the left stick has been centred since the menu opened
     private var gyroScale = 1.0
     private const val STEADY_AIM_TAU = 0.05 // ~150ms to settle
 
@@ -826,6 +827,7 @@ object Steamify : ClientModInitializer {
             // A button still held from the switch must not fire again in the new layout,
             // e.g. Start opens pause then would close it the next frame
             swallowHeld()
+            navStickReady = false
             wasInMenu = inMenu
         }
 
@@ -900,7 +902,15 @@ object Steamify : ClientModInitializer {
             val all = menu.flatMap(combos)
             for (b in menu) drive(b, evaluate(b, combos(b), all, now), b.tap, now, b.onChange)
             if (Bindings.listening == null && ActionSets.capturing == null) navigate(screen, now) // its arrow keys would end a capture
-            driveMappings(mc.options.keyMappings.filter { it.name in setMaps || it.name in heldBySets || it in gameDown }, now)
+            // A mapping here only for a set's tap or hold, or still held from a set that went off, has no binds
+            // of its own in a menu: its normal bind is a game bind
+            driveMappings(mc.options.keyMappings.filter { it.name in setMaps || it.name in heldBySets || it in gameDown }, now) {
+                when {
+                    it.name in setMaps -> Bindings.effective(it)
+                    it.name !in heldBySets && gameDown[it]?.down == true -> Bindings.effective(it)
+                    else -> emptyList()
+                }
+            }
         } else driveMappings(mc.options.keyMappings.toList(), now)
 
         readTouch(leftPad, now, dt)
@@ -1091,9 +1101,11 @@ object Steamify : ClientModInitializer {
     private fun navigate(screen: Screen, now: Long) {
         val lx = stick(SDL_GAMEPAD_AXIS_LEFTX)
         val ly = stick(SDL_GAMEPAD_AXIS_LEFTY)
-        // Dominant axis only, so a diagonal push doesn't step two ways at once
+        // Dominant axis only, so a diagonal push doesn't step two ways at once. A stick already pushed when the
+        // menu opened (walking into the inventory) waits until it's let go
+        if (maxOf(abs(lx), abs(ly)) < NAV_STICK_THRESHOLD) navStickReady = true
         val stickDir = when {
-            maxOf(abs(lx), abs(ly)) < NAV_STICK_THRESHOLD -> -1
+            !navStickReady || maxOf(abs(lx), abs(ly)) < NAV_STICK_THRESHOLD -> -1
             abs(ly) >= abs(lx) -> if (ly < 0) 0 else 1
             else -> if (lx < 0) 2 else 3
         }
