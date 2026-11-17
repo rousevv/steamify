@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Qualquer",
   "steamify.sets.places.tooltip": "Clique num mundo de um jogador ou num servidor para adicioná-lo, de novo para removê-lo. Na tela inicial: limpar. Com mundos definidos, o conjunto só fica ativo neles. Sem ativador nem itens, fica sempre ativo neles",
   "steamify.sets.gyro": "Giroscópio: %s",
-  "steamify.sets.gyro.tooltip": "O giroscópio enquanto este conjunto está ativo. Sem alteração deixa para os conjuntos abaixo, normalmente ativo enquanto o trackpad direito é tocado",
+  "steamify.sets.gyro.tooltip": "Giroscópio enquanto este conjunto está ativo. Sem alteração deixa para os conjuntos abaixo, normalmente ativo enquanto o botão do giroscópio é mantido",
   "steamify.sets.gyro.inherit": "Sem alteração",
-  "steamify.sets.gyro.padTouch": "Toque no trackpad direito",
+  "steamify.sets.gyro.padTouch": "Botão do giroscópio",
   "steamify.sets.gyro.always": "Sempre ativo",
   "steamify.sets.gyro.off": "Desligado",
   "steamify.battery.low.title": "Bateria do controle fraca",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Minimizar o jogo",
   "key.steamify.debug_overlay": "Tela de depuração (F3)",
   "key.steamify.hotbar_pad": "Barra no trackpad",
+  "key.steamify.gyro": "Giroscópio",
   "key.steamify.scroll_up": "Rolar para cima",
   "key.steamify.scroll_down": "Rolar para baixo",
   "key.steamify.drop_stack": "Largar pilha inteira",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Esquecer",
   "steamify.controllers.forget.tooltip": "Remove este comando da lista. Recebe um perfil novo da próxima vez que se ligar",
   "steamify.option.gyro.playerSpace": "Giro horizontal",
-  "steamify.option.gyro.playerSpace.tooltip": "LIGADO: virar para a esquerda e direita segue o horizonte não importa como você segure o controle, então tanto guinar quanto rolar viram (Player Space do Steam). DESLIGADO: só vira girando o controle em torno do próprio eixo vertical"
+  "steamify.option.gyro.playerSpace.tooltip": "LIGADO: virar para a esquerda e direita segue o horizonte não importa como você segure o controle, então tanto guinar quanto rolar viram (Player Space do Steam). DESLIGADO: só vira girando o controle em torno do próprio eixo vertical",
+  "steamify.option.gyro.trackball": "Trackball do giroscópio",
+  "steamify.option.gyro.trackball.tooltip": "Largar o botão do giroscópio a meio de uma rotação mantém a câmara a rodar e a abrandar como após um deslize no trackpad, conforme o atrito do trackball"
 }

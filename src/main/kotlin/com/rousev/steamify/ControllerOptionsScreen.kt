@@ -36,7 +36,7 @@ class ControllerOptionsScreen(last: Screen, options: Options) :
             OptionInstance.Enum(GridSpot.entries, Codec.STRING.xmap(GridSpot::valueOf, GridSpot::name)),
             Settings.gridSpot,
         ) { Settings.gridSpot = it })
-        section("gyro", flag(Flag.PLAYER_SPACE), flag(Flag.STEADY_AIM), tune(Tune.STEADY_AIM_REDUCTION, ::percent))
+        section("gyro", flag(Flag.PLAYER_SPACE), flag(Flag.GYRO_TRACKBALL), flag(Flag.STEADY_AIM), tune(Tune.STEADY_AIM_REDUCTION, ::percent))
         list?.addBig(Button.builder(Component.translatable("steamify.calibrate.button")) { minecraft.gui.setScreen(GyroCalibrationScreen(this)) }
             .tooltip(Tooltip.create(Component.translatable("steamify.calibrate.button.tooltip"))).build())
         section("aimAssist", flag(Flag.AIM_ASSIST), tune(Tune.AIM_ASSIST, ::percent), flag(Flag.AIM_ASSIST_SINGLEPLAYER_ONLY))

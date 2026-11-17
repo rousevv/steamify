@@ -105,6 +105,7 @@ object Bindings {
     lateinit var scrollUp: KeyMapping
     lateinit var scrollDown: KeyMapping
     lateinit var dropStack: KeyMapping
+    lateinit var gyro: KeyMapping
 
     private fun each(vararg inputs: Int): List<Press> = inputs.map { Press(listOf(it)) }
 
@@ -136,6 +137,8 @@ object Bindings {
         "key.steamify.debug_overlay" to listOf(Press(listOf(SDL_GAMEPAD_BUTTON_GUIDE), Gesture.RELEASE)),
         // The left pad picks hotbar slots while touched. Unbind it in an action set to free the pad for other binds
         "key.steamify.hotbar_pad" to each(L_PAD_TOUCH),
+        // Steam's default: gyro while the thumb rests on the right pad. Unbound, gyro is always on
+        "key.steamify.gyro" to each(R_PAD_TOUCH),
     )
 
     private val names = arrayOf(
@@ -169,6 +172,7 @@ object Bindings {
         scrollUp = unbound("key.steamify.scroll_up")
         scrollDown = unbound("key.steamify.scroll_down")
         dropStack = unbound("key.steamify.drop_stack")
+        gyro = unbound("key.steamify.gyro")
         pause = unbound("key.steamify.pause")
         gameMode = unbound("key.steamify.game_mode")
         debugMenu = unbound("key.steamify.debug_menu")

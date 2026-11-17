@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Qualsiasi",
   "steamify.sets.places.tooltip": "Clicca in un mondo in giocatore singolo o su un server per aggiungerlo, di nuovo per toglierlo. Dalla schermata del titolo: svuota. Con mondi impostati, il set è attivo solo lì. Senza attivatore né oggetti, lì è sempre attivo",
   "steamify.sets.gyro": "Giroscopio: %s",
-  "steamify.sets.gyro.tooltip": "Il giroscopio mentre questo set è attivo. Invariato lo lascia ai set sotto, di solito attivo mentre tocchi il trackpad destro",
+  "steamify.sets.gyro.tooltip": "Giroscopio mentre questo set è attivo. Invariato lo lascia ai set sottostanti, di solito attivo mentre tieni premuto il tasto giroscopio",
   "steamify.sets.gyro.inherit": "Invariato",
-  "steamify.sets.gyro.padTouch": "Tocco sul trackpad destro",
+  "steamify.sets.gyro.padTouch": "Tasto giroscopio",
   "steamify.sets.gyro.always": "Sempre attivo",
   "steamify.sets.gyro.off": "Disattivato",
   "steamify.battery.low.title": "Batteria del controller scarica",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Riduci il gioco",
   "key.steamify.debug_overlay": "Schermata di debug (F3)",
   "key.steamify.hotbar_pad": "Barra col trackpad",
+  "key.steamify.gyro": "Giroscopio",
   "key.steamify.scroll_up": "Scorri su",
   "key.steamify.scroll_down": "Scorri giù",
   "key.steamify.drop_stack": "Getta pila intera",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Dimentica",
   "steamify.controllers.forget.tooltip": "Rimuove questo controller dall'elenco. Riceverà un nuovo profilo la prossima volta che si collega",
   "steamify.option.gyro.playerSpace": "Rotazione orizzontale",
-  "steamify.option.gyro.playerSpace.tooltip": "SÌ: girare a sinistra e a destra segue l'orizzonte comunque tieni il controller, quindi sia l'imbardata sia il rollio fanno girare (Player Space di Steam). NO: fa girare solo la rotazione attorno all'asse verticale del controller"
+  "steamify.option.gyro.playerSpace.tooltip": "SÌ: girare a sinistra e a destra segue l'orizzonte comunque tieni il controller, quindi sia l'imbardata sia il rollio fanno girare (Player Space di Steam). NO: fa girare solo la rotazione attorno all'asse verticale del controller",
+  "steamify.option.gyro.trackball": "Trackball giroscopio",
+  "steamify.option.gyro.trackball.tooltip": "Rilasciando il tasto giroscopio a metà rotazione, la visuale continua a girare e rallenta come dopo uno scatto sul trackpad, secondo l'attrito del trackball"
 }

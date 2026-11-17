@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Любые",
   "steamify.sets.places.tooltip": "Нажми в одиночном мире или на сервере, чтобы добавить его, ещё раз, чтобы убрать. С главного экрана: очистить. С заданными мирами набор включён только там. Без активации и предметов он там всегда включён",
   "steamify.sets.gyro": "Гироскоп: %s",
-  "steamify.sets.gyro.tooltip": "Гироскоп, пока набор включён. Без изменений оставляет решение наборам ниже, обычно включён, пока касаешься правого пада",
+  "steamify.sets.gyro.tooltip": "Гироскоп, пока этот набор включён. «Без изменений» оставляет это наборам ниже, обычно он включён, пока зажата кнопка гироскопа",
   "steamify.sets.gyro.inherit": "Без изменений",
-  "steamify.sets.gyro.padTouch": "Касание правого пада",
+  "steamify.sets.gyro.padTouch": "Кнопка гироскопа",
   "steamify.sets.gyro.always": "Всегда включён",
   "steamify.sets.gyro.off": "Выключен",
   "steamify.battery.low.title": "Низкий заряд контроллера",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Свернуть игру",
   "key.steamify.debug_overlay": "Экран отладки (F3)",
   "key.steamify.hotbar_pad": "Панель на трекпаде",
+  "key.steamify.gyro": "Гироскоп",
   "key.steamify.scroll_up": "Прокрутка вверх",
   "key.steamify.scroll_down": "Прокрутка вниз",
   "key.steamify.drop_stack": "Выбросить весь стак",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Забыть",
   "steamify.controllers.forget.tooltip": "Убирает этот контроллер из списка. При следующем подключении он получит новый профиль",
   "steamify.option.gyro.playerSpace": "Горизонтальный поворот",
-  "steamify.option.gyro.playerSpace.tooltip": "ВКЛ: поворот влево и вправо следует горизонту, как бы ты ни держал контроллер, так что поворачивают и рыскание, и крен (Player Space из Steam). ВЫКЛ: поворачивает только вращение контроллера вокруг его собственной вертикальной оси"
+  "steamify.option.gyro.playerSpace.tooltip": "ВКЛ: поворот влево и вправо следует горизонту, как бы ты ни держал контроллер, так что поворачивают и рыскание, и крен (Player Space из Steam). ВЫКЛ: поворачивает только вращение контроллера вокруг его собственной вертикальной оси",
+  "steamify.option.gyro.trackball": "Трекбол гироскопа",
+  "steamify.option.gyro.trackball.tooltip": "Если отпустить кнопку гироскопа посреди поворота, камера продолжит вращаться и замедлится, как после взмаха по трекпаду, с трением трекбола"
 }

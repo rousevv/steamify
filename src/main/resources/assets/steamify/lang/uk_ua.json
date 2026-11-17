@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Будь-які",
   "steamify.sets.places.tooltip": "Натисни в одиночному світі або на сервері, щоб додати його, ще раз, щоб прибрати. З головного екрана: очистити. Із заданими світами набір увімкнено лише там. Без активації та предметів він там завжди ввімкнений",
   "steamify.sets.gyro": "Гіроскоп: %s",
-  "steamify.sets.gyro.tooltip": "Гіроскоп, поки набір увімкнено. Без змін залишає це наборам нижче, зазвичай увімкнено, поки торкаєшся правого пада",
+  "steamify.sets.gyro.tooltip": "Гіроскоп, поки цей набір увімкнений. «Без змін» залишає це наборам нижче, зазвичай він увімкнений, поки затиснута кнопка гіроскопа",
   "steamify.sets.gyro.inherit": "Без змін",
-  "steamify.sets.gyro.padTouch": "Дотик до правого пада",
+  "steamify.sets.gyro.padTouch": "Кнопка гіроскопа",
   "steamify.sets.gyro.always": "Завжди ввімкнено",
   "steamify.sets.gyro.off": "Вимкнено",
   "steamify.battery.low.title": "Низький заряд контролера",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Згорнути гру",
   "key.steamify.debug_overlay": "Екран налагодження (F3)",
   "key.steamify.hotbar_pad": "Панель на трекпаді",
+  "key.steamify.gyro": "Гіроскоп",
   "key.steamify.scroll_up": "Прокрутка вгору",
   "key.steamify.scroll_down": "Прокрутка вниз",
   "key.steamify.drop_stack": "Викинути весь стак",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Забути",
   "steamify.controllers.forget.tooltip": "Прибирає цей контролер зі списку. Під час наступного під'єднання він отримає новий профіль",
   "steamify.option.gyro.playerSpace": "Горизонтальний поворот",
-  "steamify.option.gyro.playerSpace.tooltip": "УВІМК: поворот ліворуч і праворуч іде за горизонтом, хоч як тримай контролер, тож повертають і рискання, і крен (Player Space зі Steam). ВИМК: повертає лише обертання контролера навколо його власної вертикальної осі"
+  "steamify.option.gyro.playerSpace.tooltip": "УВІМК: поворот ліворуч і праворуч іде за горизонтом, хоч як тримай контролер, тож повертають і рискання, і крен (Player Space зі Steam). ВИМК: повертає лише обертання контролера навколо його власної вертикальної осі",
+  "steamify.option.gyro.trackball": "Трекбол гіроскопа",
+  "steamify.option.gyro.trackball.tooltip": "Якщо відпустити кнопку гіроскопа посеред повороту, камера продовжить обертатися й сповільниться, як після змаху по трекпаду, з тертям трекбола"
 }

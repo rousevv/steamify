@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Cualquiera",
   "steamify.sets.places.tooltip": "Haz clic en un mundo de un jugador o en un servidor para añadirlo, otra vez para quitarlo. Desde la pantalla de título: borrar. Con mundos puestos, el conjunto solo está activo allí. Sin activador ni objetos, allí siempre está activo",
   "steamify.sets.gyro": "Giroscopio: %s",
-  "steamify.sets.gyro.tooltip": "El giroscopio mientras este conjunto está activo. Sin cambios lo deja a los conjuntos de abajo, normalmente activo mientras tocas el trackpad derecho",
+  "steamify.sets.gyro.tooltip": "Giroscopio mientras este conjunto está activo. Sin cambios lo deja a los conjuntos de abajo, normalmente activo mientras se mantiene el botón del giroscopio",
   "steamify.sets.gyro.inherit": "Sin cambios",
-  "steamify.sets.gyro.padTouch": "Tocar trackpad derecho",
+  "steamify.sets.gyro.padTouch": "Botón del giroscopio",
   "steamify.sets.gyro.always": "Siempre activo",
   "steamify.sets.gyro.off": "Desactivado",
   "steamify.battery.low.title": "Batería del mando baja",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Minimizar el juego",
   "key.steamify.debug_overlay": "Pantalla de depuración (F3)",
   "key.steamify.hotbar_pad": "Barra con el trackpad",
+  "key.steamify.gyro": "Giroscopio",
   "key.steamify.scroll_up": "Desplazar arriba",
   "key.steamify.scroll_down": "Desplazar abajo",
   "key.steamify.drop_stack": "Soltar pila entera",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Olvidar",
   "steamify.controllers.forget.tooltip": "Quita este control de la lista. Tendrá un perfil nuevo la próxima vez que se conecte",
   "steamify.option.gyro.playerSpace": "Giro horizontal",
-  "steamify.option.gyro.playerSpace.tooltip": "SÍ: girar a izquierda y derecha sigue el horizonte como sea que sujetes el mando, así que tanto la guiñada como el alabeo giran (Player Space de Steam). NO: solo gira la rotación del mando sobre su propio eje vertical"
+  "steamify.option.gyro.playerSpace.tooltip": "SÍ: girar a izquierda y derecha sigue el horizonte como sea que sujetes el mando, así que tanto la guiñada como el alabeo giran (Player Space de Steam). NO: solo gira la rotación del mando sobre su propio eje vertical",
+  "steamify.option.gyro.trackball": "Trackball del giroscopio",
+  "steamify.option.gyro.trackball.tooltip": "Al soltar el botón del giroscopio a mitad de un giro, la cámara sigue girando y frena como tras un deslizamiento en el trackpad, según la fricción del trackball"
 }

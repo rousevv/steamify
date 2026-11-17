@@ -110,9 +110,9 @@
   "steamify.sets.places.none": "ʎu∀",
   "steamify.sets.places.tooltip": "ǝɹǝɥʇ uo sʎɐʍlɐ s,ʇᴉ 'sɯǝʇᴉ ɹo ɹǝƃƃᴉɹʇ ou ɥʇᴉM ˙ǝɹǝɥʇ uo ʎluo sᴉ ʇǝs ǝɥʇ 'ʇǝs splɹoʍ ɥʇᴉM ˙ɹɐǝlɔ :uǝǝɹɔs ǝlʇᴉʇ ǝɥʇ ɯoɹℲ ˙ʇᴉ ǝʌoɯǝɹ oʇ uᴉɐƃɐ 'ʇᴉ ppɐ oʇ ɹǝʌɹǝs ɐ uo ɹo plɹoʍ ɹǝʎɐldǝlƃuᴉs ɐ uᴉ ǝlᴉɥʍ ʞɔᴉlƆ",
   "steamify.sets.gyro": "%s :oɹʎ⅁",
-  "steamify.sets.gyro.tooltip": "pǝɥɔnoʇ sᴉ pɐd ʇɥƃᴉɹ ǝɥʇ ǝlᴉɥʍ uo ʎllɐɯɹou 'ʍolǝq sʇǝs ǝɥʇ oʇ ʇᴉ sǝʌɐǝl pǝƃuɐɥɔu∩ ˙uo sᴉ ʇǝs sᴉɥʇ ǝlᴉɥʍ oɹʎ⅁",
+  "steamify.sets.gyro.tooltip": "plǝɥ sᴉ puᴉq oɹʎ⅁ ǝɥʇ ǝlᴉɥʍ uo ʎllɐɯɹou 'ʍolǝq sʇǝs ǝɥʇ oʇ ʇᴉ sǝʌɐǝl pǝƃuɐɥɔu∩ ˙uo sᴉ ʇǝs sᴉɥʇ ǝlᴉɥʍ oɹʎ⅁",
   "steamify.sets.gyro.inherit": "pǝƃuɐɥɔu∩",
-  "steamify.sets.gyro.padTouch": "ɥɔno⊥ pɐԀ ʇɥƃᴉᴚ",
+  "steamify.sets.gyro.padTouch": "puᴉᗺ oɹʎ⅁",
   "steamify.sets.gyro.always": "uO sʎɐʍl∀",
   "steamify.sets.gyro.off": "ɟɟO",
   "steamify.battery.low.title": "ʍol ʎɹǝʇʇɐq ɹǝlloɹʇuoƆ",
@@ -165,6 +165,7 @@
   "key.steamify.minimize": "ǝɯɐ⅁ ǝzᴉɯᴉuᴉW",
   "key.steamify.debug_overlay": "(F3) uǝǝɹɔS ƃnqǝᗡ",
   "key.steamify.hotbar_pad": "ɹɐqʇoH pɐdʞɔɐɹ⊥",
+  "key.steamify.gyro": "oɹʎ⅁",
   "key.steamify.scroll_up": "d∩ lloɹɔS",
   "key.steamify.scroll_down": "uʍoᗡ lloɹɔS",
   "key.steamify.drop_stack": "ʞɔɐʇS doɹᗡ",
@@ -288,5 +289,7 @@
   "steamify.controllers.forget": "ʇǝƃɹoℲ",
   "steamify.controllers.forget.tooltip": "sʇɔǝuuoɔ ʇᴉ ǝɯᴉʇ ʇxǝu ǝɥʇ ǝlᴉɟoɹd ʍǝu ɐ sʇǝƃ ʇI ˙ʇsᴉl ǝɥʇ ɯoɹɟ ɹǝlloɹʇuoɔ sᴉɥʇ sǝʌoɯǝᴚ",
   "steamify.option.gyro.playerSpace": "ƃuᴉuɹn⊥ lɐʇuozᴉɹoH",
-  "steamify.option.gyro.playerSpace.tooltip": "suɹnʇ sᴉxɐ dn uʍo sʇᴉ punoɹɐ ɹǝlloɹʇuoɔ ǝɥʇ ƃuᴉʇɐʇoɹ ʎluo :ℲℲO ˙(ǝɔɐdS ɹǝʎɐlԀ s,ɯɐǝʇS) uɹnʇ ɥʇoq ʇᴉ ƃuᴉlloɹ ɹo ƃuᴉʍɐʎ os 'ɹǝlloɹʇuoɔ ǝɥʇ ploɥ noʎ ɹǝʌǝʍoɥ uozᴉɹoɥ ǝɥʇ sʍolloɟ ʇɥƃᴉɹ puɐ ʇɟǝl ƃuᴉuɹnʇ :NO"
+  "steamify.option.gyro.playerSpace.tooltip": "suɹnʇ sᴉxɐ dn uʍo sʇᴉ punoɹɐ ɹǝlloɹʇuoɔ ǝɥʇ ƃuᴉʇɐʇoɹ ʎluo :ℲℲO ˙(ǝɔɐdS ɹǝʎɐlԀ s,ɯɐǝʇS) uɹnʇ ɥʇoq ʇᴉ ƃuᴉlloɹ ɹo ƃuᴉʍɐʎ os 'ɹǝlloɹʇuoɔ ǝɥʇ ploɥ noʎ ɹǝʌǝʍoɥ uozᴉɹoɥ ǝɥʇ sʍolloɟ ʇɥƃᴉɹ puɐ ʇɟǝl ƃuᴉuɹnʇ :NO",
+  "steamify.option.gyro.trackball": "llɐqʞɔɐɹ⊥ oɹʎ⅁",
+  "steamify.option.gyro.trackball.tooltip": "uoᴉʇɔᴉɹℲ llɐqʞɔɐɹ⊥ ƃuᴉsn 'ʞɔᴉlɟ pɐdʞɔɐɹʇ ɐ ǝʞᴉl uʍop ʇᴉ sʍols puɐ ƃuᴉuɹnʇ ɐɹǝɯɐɔ ǝɥʇ sdǝǝʞ uɹnʇ-pᴉɯ puᴉq oɹʎ⅁ ǝɥʇ ɟo oƃ ƃuᴉʇʇǝ˥"
 }

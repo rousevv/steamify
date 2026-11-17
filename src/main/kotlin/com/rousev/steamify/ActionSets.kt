@@ -21,7 +21,7 @@ class ActionSet(var name: String) {
     /** Where the set can switch on. Sets were in-game only before this existed, so that's the default. */
     enum class Where(val key: String) { GAME("game"), MENUS("menus"), BOTH("both") }
 
-    /** Gyro while the set is on. INHERIT leaves it to the sets below (normally: while the right pad is touched). */
+    /** Gyro while the set is on. INHERIT leaves it to the sets below (normally: while the Gyro bind is held). */
     enum class Gyro(val key: String) { INHERIT("inherit"), PAD_TOUCH("padTouch"), ALWAYS("always"), OFF("off") }
 
 

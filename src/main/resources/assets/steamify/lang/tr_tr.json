@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Herhangi",
   "steamify.sets.places.tooltip": "Tek oyunculu bir dünyadayken veya bir sunucudayken eklemek için tıkla, kaldırmak için tekrar tıkla. Ana ekrandan: temizle. Dünyalar ayarlıysa set yalnızca oralarda açıktır. Tetikleyici veya eşya yoksa orada hep açıktır",
   "steamify.sets.gyro": "Jiroskop: %s",
-  "steamify.sets.gyro.tooltip": "Bu set açıkken jiroskop. Değişmedi, kararı alttaki setlere bırakır; normalde sağ yüzeye dokunulurken açıktır",
+  "steamify.sets.gyro.tooltip": "Bu set açıkken jiroskop. Değişmedi, kararı alttaki setlere bırakır; normalde jiroskop tuşu basılıyken açıktır",
   "steamify.sets.gyro.inherit": "Değişmedi",
-  "steamify.sets.gyro.padTouch": "Sağ yüzeye dokunma",
+  "steamify.sets.gyro.padTouch": "Jiroskop tuşu",
   "steamify.sets.gyro.always": "Her zaman açık",
   "steamify.sets.gyro.off": "Kapalı",
   "steamify.battery.low.title": "Kontrolcü pili azaldı",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Oyunu küçült",
   "key.steamify.debug_overlay": "Hata ayıklama ekranı (F3)",
   "key.steamify.hotbar_pad": "Yüzeyle hızlı erişim çubuğu",
+  "key.steamify.gyro": "Jiroskop",
   "key.steamify.scroll_up": "Yukarı kaydır",
   "key.steamify.scroll_down": "Aşağı kaydır",
   "key.steamify.drop_stack": "Tüm yığını at",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Unut",
   "steamify.controllers.forget.tooltip": "Bu kontrolcüyü listeden kaldırır. Bir sonraki bağlanışında yeni bir profil alır",
   "steamify.option.gyro.playerSpace": "Yatay dönüş",
-  "steamify.option.gyro.playerSpace.tooltip": "AÇIK: sola ve sağa dönüş, kontrolcüyü nasıl tutarsan tut ufku izler; hem sapma hem yatırma döndürür (Steam'in Player Space'i). KAPALI: yalnızca kontrolcünün kendi dikey ekseni etrafında döndürmek döndürür"
+  "steamify.option.gyro.playerSpace.tooltip": "AÇIK: sola ve sağa dönüş, kontrolcüyü nasıl tutarsan tut ufku izler; hem sapma hem yatırma döndürür (Steam'in Player Space'i). KAPALI: yalnızca kontrolcünün kendi dikey ekseni etrafında döndürmek döndürür",
+  "steamify.option.gyro.trackball": "Jiroskop Trackball",
+  "steamify.option.gyro.trackball.tooltip": "Dönüşün ortasında jiroskop tuşunu bırakmak kameranın dönmeye devam edip izleme yüzeyinde bir fiske gibi yavaşlamasını sağlar, trackball sürtünmesine göre"
 }

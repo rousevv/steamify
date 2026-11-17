@@ -65,6 +65,7 @@ enum class Flag(val key: String, val default: Boolean) {
     INVERT_Y("look.invertY", false),
     STEADY_AIM("gyro.steadyAim", true),
     PLAYER_SPACE("gyro.playerSpace", true),
+    GYRO_TRACKBALL("gyro.trackball", true),
     AIM_ASSIST("aim.assist", true),
     AIM_ASSIST_SINGLEPLAYER_ONLY("aim.assistSingleplayerOnly", true),
     HOTBAR_STRIP("hotbar.strip", false),

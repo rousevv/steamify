@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Οποιοσδήποτε",
   "steamify.sets.places.tooltip": "Κάνε κλικ σε κόσμο ενός παίκτη ή σε διακομιστή για να τον προσθέσεις, ξανά για να τον αφαιρέσεις. Από την αρχική οθόνη: εκκαθάριση. Με κόσμους, το σετ είναι ενεργό μόνο εκεί. Χωρίς ενεργοποιητή ή αντικείμενα είναι πάντα ενεργό εκεί",
   "steamify.sets.gyro": "Γυροσκόπιο: %s",
-  "steamify.sets.gyro.tooltip": "Το γυροσκόπιο όσο είναι ενεργό αυτό το σετ. Αμετάβλητο το αφήνει στα σετ από κάτω, συνήθως ενεργό όσο αγγίζεται το δεξί trackpad",
+  "steamify.sets.gyro.tooltip": "Το γυροσκόπιο όσο είναι ενεργό αυτό το σετ. Το «Αμετάβλητο» το αφήνει στα σετ από κάτω, συνήθως ενεργό όσο κρατάτε το πλήκτρο γυροσκοπίου",
   "steamify.sets.gyro.inherit": "Αμετάβλητο",
-  "steamify.sets.gyro.padTouch": "Άγγιγμα δεξιού trackpad",
+  "steamify.sets.gyro.padTouch": "Πλήκτρο γυροσκοπίου",
   "steamify.sets.gyro.always": "Πάντα ενεργό",
   "steamify.sets.gyro.off": "Ανενεργό",
   "steamify.battery.low.title": "Χαμηλή μπαταρία χειριστηρίου",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Ελαχιστοποίηση παιχνιδιού",
   "key.steamify.debug_overlay": "Οθόνη εντοπισμού σφαλμάτων (F3)",
   "key.steamify.hotbar_pad": "Γραμμή στο trackpad",
+  "key.steamify.gyro": "Γυροσκόπιο",
   "key.steamify.scroll_up": "Κύλιση πάνω",
   "key.steamify.scroll_down": "Κύλιση κάτω",
   "key.steamify.drop_stack": "Ρίψη ολόκληρης στοίβας",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Ξέχασέ το",
   "steamify.controllers.forget.tooltip": "Αφαιρεί αυτό το χειριστήριο από τη λίστα. Θα πάρει νέο προφίλ την επόμενη φορά που θα συνδεθεί",
   "steamify.option.gyro.playerSpace": "Οριζόντια περιστροφή",
-  "steamify.option.gyro.playerSpace.tooltip": "ΝΑΙ: η στροφή αριστερά και δεξιά ακολουθεί τον ορίζοντα όπως κι αν κρατάς το χειριστήριο, οπότε στρίβουν και η εκτροπή και η κλίση (Player Space του Steam). ΟΧΙ: στρίβει μόνο η περιστροφή γύρω από τον κατακόρυφο άξονα του χειριστηρίου"
+  "steamify.option.gyro.playerSpace.tooltip": "ΝΑΙ: η στροφή αριστερά και δεξιά ακολουθεί τον ορίζοντα όπως κι αν κρατάς το χειριστήριο, οπότε στρίβουν και η εκτροπή και η κλίση (Player Space του Steam). ΟΧΙ: στρίβει μόνο η περιστροφή γύρω από τον κατακόρυφο άξονα του χειριστηρίου",
+  "steamify.option.gyro.trackball": "Trackball γυροσκοπίου",
+  "steamify.option.gyro.trackball.tooltip": "Αν αφήσετε το πλήκτρο γυροσκοπίου στη μέση μιας στροφής, η κάμερα συνεχίζει να γυρίζει και επιβραδύνει όπως μετά από τίναγμα στο trackpad, με την τριβή του trackball"
 }

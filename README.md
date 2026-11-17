@@ -6,7 +6,8 @@ It's client-side only and works on any server (however it may flag some servers'
 
 ## Aiming
 
-- Gyro aiming while your thumb rests on the right trackpad, the way steam does it by default. On controllers without a right trackpad (DualSense, Switch Pro) it's always on. Action sets can switch it to always on or off.
+- Gyro aiming while your thumb rests on the right trackpad, the way steam does it by default. You can rebind what turns it on in the Controls screen like any other bind, or unbind it to keep gyro always on (the default on controllers without a right trackpad, like DualSense and Switch Pro). Action sets can also switch it to always on or off.
+- Gyro trackball: let go of the gyro button mid-turn and the camera keeps spinning and slows down, like a trackpad flick. It can be turned off in Controller Settings.
 - Optional gyro acceleration, so fast turns go further while slow aiming stays precise, and a separate vertical gyro scale.
 - The right trackpad turns the camera like a mouse, and a flick keeps it spinning like a trackball. The right stick works too, but like you didn't buy a steam controller to NOT use the trackpads did you?
 - Horizontal Turning makes left and right follow the horizon however you hold the controller, so yawing or rolling it both turn, like Steam Input's Player Space.
@@ -51,7 +52,7 @@ There's customizable rumble for footsteps, damage, landing, block breaking, mini
 
 ## Controllers
 
-Steamify is built for the Steam Controller (2026) and Steam Deck. The original Steam Controller should work too, but it's untested. Other controllers that support SDL (DualSense, Switch Pro, Xbox and so on) work too, with gyro if. With more than one connected, Steamify uses whichever you touched last. If you're using the steam deck, play it in desktop mode with Steam closed so it doesn't cause double inputs.
+Steamify is built for the Steam Controller (2026) and Steam Deck. The original Steam Controller should work too, but it's untested. Other controllers that support SDL (DualSense, Switch Pro, Xbox and so on) work too, with gyro if they have it. With more than one connected, Steamify uses whichever you touched last. If you're using the steam deck, play it in desktop mode with Steam closed so it doesn't cause double inputs.
 
 If Steam is running, turn Steam Input off for Minecraft or your launcher. Otherwise Steam grabs the controller first and the game only sees a plain gamepad.
 

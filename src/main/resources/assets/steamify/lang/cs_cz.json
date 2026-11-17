@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Jakékoli",
   "steamify.sets.places.tooltip": "Klikni ve světě pro jednoho hráče nebo na serveru pro jeho přidání, znovu pro odebrání. Z hlavní obrazovky: vymazat. S nastavenými světy je sada zapnutá jen tam. Bez spouštěče a předmětů je tam zapnutá vždy",
   "steamify.sets.gyro": "Gyroskop: %s",
-  "steamify.sets.gyro.tooltip": "Gyroskop, dokud je tato sada zapnutá. Beze změny to nechá na sadách pod ní, obvykle zapnutý, dokud se dotýkáš pravého touchpadu",
+  "steamify.sets.gyro.tooltip": "Gyroskop, když je tato sada zapnutá. Beze změny to nechá na sadách pod ní, obvykle zapnutý, když držíš tlačítko gyroskopu",
   "steamify.sets.gyro.inherit": "Beze změny",
-  "steamify.sets.gyro.padTouch": "Dotyk pravého touchpadu",
+  "steamify.sets.gyro.padTouch": "Tlačítko gyroskopu",
   "steamify.sets.gyro.always": "Vždy zapnutý",
   "steamify.sets.gyro.off": "Vypnutý",
   "steamify.battery.low.title": "Slabá baterie ovladače",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Minimalizovat hru",
   "key.steamify.debug_overlay": "Ladicí obrazovka (F3)",
   "key.steamify.hotbar_pad": "Lišta na touchpadu",
+  "key.steamify.gyro": "Gyroskop",
   "key.steamify.scroll_up": "Posunout nahoru",
   "key.steamify.scroll_down": "Posunout dolů",
   "key.steamify.drop_stack": "Zahodit celý stack",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Zapomenout",
   "steamify.controllers.forget.tooltip": "Odebere tento ovladač ze seznamu. Při příštím připojení dostane nový profil",
   "steamify.option.gyro.playerSpace": "Vodorovné otáčení",
-  "steamify.option.gyro.playerSpace.tooltip": "ZAP: otáčení doleva a doprava sleduje horizont, ať držíš ovladač jakkoli, takže otáčí stáčení i náklon (Player Space ze Steamu). VYP: otáčí jen otáčení ovladače kolem jeho vlastní svislé osy"
+  "steamify.option.gyro.playerSpace.tooltip": "ZAP: otáčení doleva a doprava sleduje horizont, ať držíš ovladač jakkoli, takže otáčí stáčení i náklon (Player Space ze Steamu). VYP: otáčí jen otáčení ovladače kolem jeho vlastní svislé osy",
+  "steamify.option.gyro.trackball": "Trackball gyroskopu",
+  "steamify.option.gyro.trackball.tooltip": "Pustíš-li tlačítko gyroskopu uprostřed otáčení, kamera se dál otáčí a zpomaluje jako po švihu na trackpadu, podle tření trackballu"
 }

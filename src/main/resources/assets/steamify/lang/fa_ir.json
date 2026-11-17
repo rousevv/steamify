@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "هر جهانی",
   "steamify.sets.places.tooltip": "در یک جهان تک‌نفره یا روی یک سرور کلیک کن تا اضافه شود، دوباره تا حذف شود. از صفحهٔ آغازین: پاک کردن. با جهان‌های تنظیم‌شده، مجموعه فقط آنجا فعال است. بدون فعال‌کننده یا آیتم، آنجا همیشه فعال است",
   "steamify.sets.gyro": "ژیروسکوپ: %s",
-  "steamify.sets.gyro.tooltip": "ژیروسکوپ تا وقتی این مجموعه فعال است. بدون تغییر، تصمیم را به مجموعه‌های زیرین می‌سپارد؛ معمولاً تا وقتی ترک‌پد راست لمس شود روشن است",
+  "steamify.sets.gyro.tooltip": "ژیروسکوپ تا وقتی این مجموعه فعال است. «بدون تغییر» آن را به مجموعه‌های زیرین می‌سپارد، معمولاً تا وقتی دکمهٔ ژیروسکوپ نگه داشته شود فعال است",
   "steamify.sets.gyro.inherit": "بدون تغییر",
-  "steamify.sets.gyro.padTouch": "لمس ترک‌پد راست",
+  "steamify.sets.gyro.padTouch": "دکمهٔ ژیروسکوپ",
   "steamify.sets.gyro.always": "همیشه روشن",
   "steamify.sets.gyro.off": "خاموش",
   "steamify.battery.low.title": "باتری دسته کم است",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "کوچک کردن بازی",
   "key.steamify.debug_overlay": "صفحهٔ اشکال‌زدایی (F3)",
   "key.steamify.hotbar_pad": "نوار با ترک‌پد",
+  "key.steamify.gyro": "ژیروسکوپ",
   "key.steamify.scroll_up": "پیمایش به بالا",
   "key.steamify.scroll_down": "پیمایش به پایین",
   "key.steamify.drop_stack": "انداختن کل دسته",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "فراموش کن",
   "steamify.controllers.forget.tooltip": "این دسته را از فهرست حذف می‌کند. دفعهٔ بعد که وصل شود پروفایل تازه‌ای می‌گیرد",
   "steamify.option.gyro.playerSpace": "چرخش افقی",
-  "steamify.option.gyro.playerSpace.tooltip": "روشن: چرخیدن به چپ و راست هر طور دسته را بگیری از افق پیروی می‌کند، پس هم چرخاندن و هم کج کردن می‌چرخانند (Player Space در Steam). خاموش: فقط چرخاندن دسته حول محور عمودی خودش می‌چرخاند"
+  "steamify.option.gyro.playerSpace.tooltip": "روشن: چرخیدن به چپ و راست هر طور دسته را بگیری از افق پیروی می‌کند، پس هم چرخاندن و هم کج کردن می‌چرخانند (Player Space در Steam). خاموش: فقط چرخاندن دسته حول محور عمودی خودش می‌چرخاند",
+  "steamify.option.gyro.trackball": "ترک‌بال ژیروسکوپ",
+  "steamify.option.gyro.trackball.tooltip": "رها کردن دکمهٔ ژیروسکوپ وسط چرخش، دوربین را در حال چرخش نگه می‌دارد و مثل کشیدن سریع روی ترک‌پد کند می‌کند، با اصطکاک ترک‌بال"
 }

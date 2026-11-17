@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "כל עולם",
   "steamify.sets.places.tooltip": "לחץ כשאתה בעולם של שחקן יחיד או בשרת כדי להוסיף אותו, שוב כדי להסיר. ממסך הפתיחה: ניקוי. עם עולמות, הערכה פעילה רק שם. בלי מפעיל או פריטים היא תמיד פעילה שם",
   "steamify.sets.gyro": "ג'ירו: %s",
-  "steamify.sets.gyro.tooltip": "הג'ירו בזמן שהערכה פעילה. ללא שינוי משאיר את זה לערכות שמתחת, בדרך כלל פעיל כשנוגעים במשטח הימני",
+  "steamify.sets.gyro.tooltip": "הג'ירו כשהסט הזה פעיל. \"ללא שינוי\" משאיר את זה לסטים שמתחתיו, בדרך כלל פעיל כשמקש הג'ירו מוחזק",
   "steamify.sets.gyro.inherit": "ללא שינוי",
-  "steamify.sets.gyro.padTouch": "נגיעה במשטח הימני",
+  "steamify.sets.gyro.padTouch": "מקש ג'ירו",
   "steamify.sets.gyro.always": "תמיד פועל",
   "steamify.sets.gyro.off": "כבוי",
   "steamify.battery.low.title": "סוללת הבקר חלשה",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "מזעור המשחק",
   "key.steamify.debug_overlay": "מסך ניפוי באגים (F3)",
   "key.steamify.hotbar_pad": "סרגל במשטח המגע",
+  "key.steamify.gyro": "ג'ירו",
   "key.steamify.scroll_up": "גלילה למעלה",
   "key.steamify.scroll_down": "גלילה למטה",
   "key.steamify.drop_stack": "זריקת ערימה שלמה",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "שכח",
   "steamify.controllers.forget.tooltip": "מסיר את הבקר הזה מהרשימה. הוא יקבל פרופיל חדש בפעם הבאה שיתחבר",
   "steamify.option.gyro.playerSpace": "סיבוב אופקי",
-  "steamify.option.gyro.playerSpace.tooltip": "פועל: הסיבוב שמאלה וימינה עוקב אחרי האופק איך שלא תחזיק את הבקר, כך שגם סיבוב וגם הטיה הצידה מסובבים (Player Space של Steam). כבוי: רק סיבוב הבקר סביב הציר האנכי שלו מסובב"
+  "steamify.option.gyro.playerSpace.tooltip": "פועל: הסיבוב שמאלה וימינה עוקב אחרי האופק איך שלא תחזיק את הבקר, כך שגם סיבוב וגם הטיה הצידה מסובבים (Player Space של Steam). כבוי: רק סיבוב הבקר סביב הציר האנכי שלו מסובב",
+  "steamify.option.gyro.trackball": "טרקבול ג'ירו",
+  "steamify.option.gyro.trackball.tooltip": "שחרור מקש הג'ירו באמצע סיבוב משאיר את המצלמה מסתובבת ומאט אותה כמו החלקה על משטח המגע, לפי החיכוך של הטרקבול"
 }

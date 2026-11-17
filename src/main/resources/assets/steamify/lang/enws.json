@@ -110,9 +110,9 @@
   "steamify.sets.places.none": "Any",
   "steamify.sets.places.tooltip": "Press while in a singleplayer realm or on a court to add it, again to remove it. From the title stage: clear. With realms set, the set is only on there. With no trigger or wares, 'tis always on there",
   "steamify.sets.gyro": "Gyro: %s",
-  "steamify.sets.gyro.tooltip": "Gyro while this set is on. Unchanged leaves it to the sets below, normally on while the right pad is touched",
+  "steamify.sets.gyro.tooltip": "The gyro whilst this set be on. Unchang'd leaveth it to the sets beneath, which commonly is whilst the Gyro binding is held",
   "steamify.sets.gyro.inherit": "Unchanged",
-  "steamify.sets.gyro.padTouch": "Right Pad Touch",
+  "steamify.sets.gyro.padTouch": "Gyro Binding",
   "steamify.sets.gyro.always": "Always On",
   "steamify.sets.gyro.off": "Off",
   "steamify.battery.low.title": "Thy handheld engine's vigour fades",
@@ -165,6 +165,7 @@
   "key.steamify.minimize": "Exit, Pursued by a Bear (Minimize)",
   "key.steamify.debug_overlay": "Debug Screen (F3)",
   "key.steamify.hotbar_pad": "Touchstone Hotbar",
+  "key.steamify.gyro": "Gyro",
   "key.steamify.scroll_up": "Scroll Up",
   "key.steamify.scroll_down": "Scroll Down",
   "key.steamify.drop_stack": "Cast Down the Whole Heap",
@@ -288,5 +289,7 @@
   "steamify.controllers.forget": "Forget",
   "steamify.controllers.forget.tooltip": "Striketh this engine from the list. It shall receive a new guise when next it joineth",
   "steamify.option.gyro.playerSpace": "Turning by the Horizon",
-  "steamify.option.gyro.playerSpace.tooltip": "ON: to turn left or right followeth the horizon howe'er thou holdest thy handheld engine. OFF: only turning it about its own upright axis doth turn"
+  "steamify.option.gyro.playerSpace.tooltip": "ON: to turn left or right followeth the horizon howe'er thou holdest thy handheld engine. OFF: only turning it about its own upright axis doth turn",
+  "steamify.option.gyro.trackball": "Gyro Trackball",
+  "steamify.option.gyro.trackball.tooltip": "Release the Gyro binding mid-turn, and the view doth keep turning, slowing as from a flick upon the pad, by the Trackball Friction"
 }

@@ -4,6 +4,7 @@ import com.rousev.steamify.mixin.ContainerScreenAccessor
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.inventory.ContainerInput
+import net.minecraft.world.inventory.InventoryMenu
 import net.minecraft.world.inventory.ResultSlot
 import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
@@ -50,21 +51,29 @@ object QuickMove {
         if (s.hasItem() && screen.menu.carried.isEmpty) click(screen, s, ContainerInput.QUICK_MOVE)
     }
 
-    // Which part of the menu a slot belongs to. The player's own inventory splits into hotbar and the rest,
-    // like quick move does in the survival inventory; everything else is one region per container
-    private fun region(s: Slot): Any {
-        val c = s.container
-        return if (c is Inventory) (if (s.containerSlot < Inventory.getSelectionSize()) "hotbar" else "main") else c
+    // Slots whose items should follow a stack put down in target. Quick move sends a slot's items across the menu,
+    // so only slots on the other side from the target can be used: in a chest that's the chest when the target is
+    // in your inventory, and your whole inventory (hotbar too) when it's in the chest. A hotbar slot quick-moved
+    // there would go into the chest, not toward the target. Only the survival inventory, with nothing but your
+    // own slots, quick-moves between hotbar and the rest, so there those are the two sides
+    private fun sources(screen: AbstractContainerScreen<*>, target: Slot): List<Slot> {
+        // Armor and offhand sit past the main inventory and stay where they are, as does a crafting result
+        val slots = screen.menu.slots.filter { s ->
+            s !is ResultSlot && !(s.container is Inventory && s.containerSlot >= Inventory.INVENTORY_SIZE)
+        }
+        fun own(s: Slot) = s.container is Inventory
+        fun hotbar(s: Slot) = own(s) && s.containerSlot < Inventory.getSelectionSize()
+        return when {
+            screen.menu is InventoryMenu -> slots.filter { own(it) && hotbar(it) != hotbar(target) }
+            own(target) -> slots.filter { !own(it) }
+            else -> slots.filter(::own)
+        }
     }
 
     private fun moveAll(screen: AbstractContainerScreen<*>, target: Slot, kind: ItemStack) {
         click(screen, target, ContainerInput.PICKUP)
-        val into = region(target)
-        // Armor and offhand sit past the main inventory and stay where they are, as does a crafting result
-        for (s in screen.menu.slots) {
-            if (s is ResultSlot || !s.hasItem() || region(s) == into) continue
-            if (s.container is Inventory && s.containerSlot >= Inventory.INVENTORY_SIZE) continue
-            if (ItemStack.isSameItemSameComponents(s.item, kind)) click(screen, s, ContainerInput.QUICK_MOVE)
+        for (s in sources(screen, target)) {
+            if (s.hasItem() && ItemStack.isSameItemSameComponents(s.item, kind)) click(screen, s, ContainerInput.QUICK_MOVE)
         }
     }
 }

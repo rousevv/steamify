@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Alla",
   "steamify.sets.places.tooltip": "Klicka i en enspelarvärld eller på en server för att lägga till den, igen för att ta bort den. Från titelskärmen: rensa. Med världar valda är uppsättningen bara på där. Utan utlösare eller föremål är den alltid på där",
   "steamify.sets.gyro": "Gyro: %s",
-  "steamify.sets.gyro.tooltip": "Gyrot medan den här uppsättningen är på. Oförändrat lämnar det åt uppsättningarna under, normalt på medan högra plattan rörs",
+  "steamify.sets.gyro.tooltip": "Gyrot medan den här uppsättningen är på. Oförändrat lämnar det åt uppsättningarna under, normalt på medan gyroknappen hålls",
   "steamify.sets.gyro.inherit": "Oförändrat",
-  "steamify.sets.gyro.padTouch": "Beröring av högra plattan",
+  "steamify.sets.gyro.padTouch": "Gyroknapp",
   "steamify.sets.gyro.always": "Alltid på",
   "steamify.sets.gyro.off": "Av",
   "steamify.battery.low.title": "Låg batterinivå i handkontrollen",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Minimera spelet",
   "key.steamify.debug_overlay": "Felsökningsskärm (F3)",
   "key.steamify.hotbar_pad": "Snabbfält på styrplattan",
+  "key.steamify.gyro": "Gyro",
   "key.steamify.scroll_up": "Scrolla upp",
   "key.steamify.scroll_down": "Scrolla ner",
   "key.steamify.drop_stack": "Släpp hela högen",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Glöm",
   "steamify.controllers.forget.tooltip": "Tar bort handkontrollen från listan. Den får en ny profil nästa gång den ansluts",
   "steamify.option.gyro.playerSpace": "Horisontell vridning",
-  "steamify.option.gyro.playerSpace.tooltip": "PÅ: att vrida åt vänster och höger följer horisonten hur du än håller handkontrollen, så både girning och rollning vrider (Steams Player Space). AV: bara vridning runt handkontrollens egen lodaxel vrider"
+  "steamify.option.gyro.playerSpace.tooltip": "PÅ: att vrida åt vänster och höger följer horisonten hur du än håller handkontrollen, så både girning och rollning vrider (Steams Player Space). AV: bara vridning runt handkontrollens egen lodaxel vrider",
+  "steamify.option.gyro.trackball": "Gyrotrackball",
+  "steamify.option.gyro.trackball.tooltip": "Släpper du gyroknappen mitt i en vridning fortsätter kameran att vrida sig och saktar ner som efter ett svep på styrplattan, enligt trackballfriktionen"
 }

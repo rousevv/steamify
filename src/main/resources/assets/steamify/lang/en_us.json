@@ -110,9 +110,9 @@
   "steamify.sets.places.none": "Any",
   "steamify.sets.places.tooltip": "Click while in a singleplayer world or on a server to add it, again to remove it. From the title screen: clear. With worlds set, the set is only on there. With no trigger or items, it's always on there",
   "steamify.sets.gyro": "Gyro: %s",
-  "steamify.sets.gyro.tooltip": "Gyro while this set is on. Unchanged leaves it to the sets below, normally on while the right pad is touched",
+  "steamify.sets.gyro.tooltip": "Gyro while this set is on. Unchanged leaves it to the sets below, normally on while the Gyro bind is held",
   "steamify.sets.gyro.inherit": "Unchanged",
-  "steamify.sets.gyro.padTouch": "Right Pad Touch",
+  "steamify.sets.gyro.padTouch": "Gyro Bind",
   "steamify.sets.gyro.always": "Always On",
   "steamify.sets.gyro.off": "Off",
   "steamify.battery.low.title": "Controller battery low",
@@ -165,6 +165,7 @@
   "key.steamify.minimize": "Minimize Game",
   "key.steamify.debug_overlay": "Debug Screen (F3)",
   "key.steamify.hotbar_pad": "Trackpad Hotbar",
+  "key.steamify.gyro": "Gyro",
   "key.steamify.scroll_up": "Scroll Up",
   "key.steamify.scroll_down": "Scroll Down",
   "key.steamify.drop_stack": "Drop Stack",
@@ -288,5 +289,7 @@
   "steamify.controllers.forget": "Forget",
   "steamify.controllers.forget.tooltip": "Removes this controller from the list. It gets a new profile the next time it connects",
   "steamify.option.gyro.playerSpace": "Horizontal Turning",
-  "steamify.option.gyro.playerSpace.tooltip": "ON: turning left and right follows the horizon however you hold the controller, so yawing or rolling it both turn (Steam's Player Space). OFF: only rotating the controller around its own up axis turns"
+  "steamify.option.gyro.playerSpace.tooltip": "ON: turning left and right follows the horizon however you hold the controller, so yawing or rolling it both turn (Steam's Player Space). OFF: only rotating the controller around its own up axis turns",
+  "steamify.option.gyro.trackball": "Gyro Trackball",
+  "steamify.option.gyro.trackball.tooltip": "Letting go of the Gyro bind mid-turn keeps the camera turning and slows it down like a trackpad flick, using Trackball Friction"
 }

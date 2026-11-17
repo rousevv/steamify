@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Alle",
   "steamify.sets.places.tooltip": "Klicke in einer Einzelspielerwelt oder auf einem Server, um sie hinzuzufügen, nochmal, um sie zu entfernen. Im Titelbildschirm: leeren. Mit Welten ist das Set nur dort aktiv. Ohne Auslöser oder Gegenstände ist es dort immer aktiv",
   "steamify.sets.gyro": "Gyro: %s",
-  "steamify.sets.gyro.tooltip": "Gyro, solange dieses Set aktiv ist. Unverändert überlässt es den Sets darunter, normalerweise an, solange das rechte Pad berührt wird",
+  "steamify.sets.gyro.tooltip": "Gyro, solange dieses Set aktiv ist. Unverändert überlässt es den Sets darunter, normalerweise an, solange die Gyro-Taste gehalten wird",
   "steamify.sets.gyro.inherit": "Unverändert",
-  "steamify.sets.gyro.padTouch": "Rechtes Pad berührt",
+  "steamify.sets.gyro.padTouch": "Gyro-Taste",
   "steamify.sets.gyro.always": "Immer an",
   "steamify.sets.gyro.off": "Aus",
   "steamify.battery.low.title": "Controller-Akku schwach",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Spiel minimieren",
   "key.steamify.debug_overlay": "Debug-Bildschirm (F3)",
   "key.steamify.hotbar_pad": "Trackpad-Schnellleiste",
+  "key.steamify.gyro": "Gyro",
   "key.steamify.scroll_up": "Nach oben scrollen",
   "key.steamify.scroll_down": "Nach unten scrollen",
   "key.steamify.drop_stack": "Ganzen Stapel fallen lassen",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Vergessen",
   "steamify.controllers.forget.tooltip": "Entfernt diesen Controller aus der Liste. Beim nächsten Verbinden bekommt er ein neues Profil",
   "steamify.option.gyro.playerSpace": "Horizontales Drehen",
-  "steamify.option.gyro.playerSpace.tooltip": "AN: Links- und Rechtsdrehen folgt dem Horizont, egal wie du den Controller hältst, also drehen sowohl Gieren als auch Rollen (Player Space von Steam). AUS: nur das Drehen um die eigene Hochachse des Controllers dreht"
+  "steamify.option.gyro.playerSpace.tooltip": "AN: Links- und Rechtsdrehen folgt dem Horizont, egal wie du den Controller hältst, also drehen sowohl Gieren als auch Rollen (Player Space von Steam). AUS: nur das Drehen um die eigene Hochachse des Controllers dreht",
+  "steamify.option.gyro.trackball": "Gyro-Trackball",
+  "steamify.option.gyro.trackball.tooltip": "Lässt du die Gyro-Taste mitten in einer Drehung los, dreht sich die Kamera weiter und wird langsamer wie nach einem Trackpad-Wischer, mit der Trackball-Reibung"
 }

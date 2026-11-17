@@ -110,9 +110,9 @@
   "steamify.sets.places.none": "Any",
   "steamify.sets.places.tooltip": "Tap while in a singleplayer sea or on a port t' add it, again t' remove it. From th' title spyglass view: clear. With seas crew, th' crew be only on there. With nay trigger or booty, it's always on there",
   "steamify.sets.gyro": "Sextant: %s",
-  "steamify.sets.gyro.tooltip": "Sextant while this crew be on. Unchanged leaves it t' th' crews below, normally on while th' right pad be touched",
+  "steamify.sets.gyro.tooltip": "Sextant while this crew be on. Unchanged leaves it t' th' crews below, normally on while th' Sextant lever be held",
   "steamify.sets.gyro.inherit": "Unchanged",
-  "steamify.sets.gyro.padTouch": "Right Pad Touch",
+  "steamify.sets.gyro.padTouch": "Sextant Lever",
   "steamify.sets.gyro.always": "Always On",
   "steamify.sets.gyro.off": "Off",
   "steamify.battery.low.title": "Yer powder keg be runnin' low",
@@ -165,6 +165,7 @@
   "key.steamify.minimize": "Drop Anchor (Minimize)",
   "key.steamify.debug_overlay": "Debug Screen (F3)",
   "key.steamify.hotbar_pad": "Compass Pad Belt o' Cutlasses",
+  "key.steamify.gyro": "Sextant",
   "key.steamify.scroll_up": "Scroll Up",
   "key.steamify.scroll_down": "Scroll Down",
   "key.steamify.drop_stack": "Heave the Whole Hoard",
@@ -288,5 +289,7 @@
   "steamify.controllers.forget": "Forget",
   "steamify.controllers.forget.tooltip": "Throws this contraption off the list. It gets a fresh flag next time it docks",
   "steamify.option.gyro.playerSpace": "Turnin' wi' th' Horizon",
-  "steamify.option.gyro.playerSpace.tooltip": "ON: turnin' port an' starboard follows th' horizon however ye hold yer contraption. OFF: only twistin' it 'round its own mast turns"
+  "steamify.option.gyro.playerSpace.tooltip": "ON: turnin' port an' starboard follows th' horizon however ye hold yer contraption. OFF: only twistin' it 'round its own mast turns",
+  "steamify.option.gyro.trackball": "Sextant Cannonball",
+  "steamify.option.gyro.trackball.tooltip": "Let go o' th' Sextant lever mid-turn an' yer spyglass keeps swingin', slowin' down like a flick o' th' pad, by th' Cannonball Drag"
 }

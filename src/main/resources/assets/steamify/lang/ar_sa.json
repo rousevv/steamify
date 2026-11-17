@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "أي عالم",
   "steamify.sets.places.tooltip": "انقر وأنت في عالم لاعب فردي أو على خادم لإضافته، ومرة أخرى لإزالته. من شاشة البداية: مسح. مع وجود عوالم، تكون المجموعة مفعّلة هناك فقط. بلا مُشغِّل أو عناصر تكون مفعّلة هناك دائمًا",
   "steamify.sets.gyro": "الجيروسكوب: %s",
-  "steamify.sets.gyro.tooltip": "الجيروسكوب أثناء تفعيل هذه المجموعة. بلا تغيير يترك الأمر للمجموعات الأدنى، وعادةً يعمل ما دامت اللوحة اليمنى ملموسة",
+  "steamify.sets.gyro.tooltip": "الجيروسكوب أثناء تفعيل هذه المجموعة. «بلا تغيير» يتركه للمجموعات الأدنى، وعادةً يعمل أثناء الضغط على زر الجيروسكوب",
   "steamify.sets.gyro.inherit": "بلا تغيير",
-  "steamify.sets.gyro.padTouch": "لمس اللوحة اليمنى",
+  "steamify.sets.gyro.padTouch": "زر الجيروسكوب",
   "steamify.sets.gyro.always": "يعمل دائمًا",
   "steamify.sets.gyro.off": "متوقف",
   "steamify.battery.low.title": "بطارية يد التحكم منخفضة",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "تصغير اللعبة",
   "key.steamify.debug_overlay": "شاشة التصحيح (F3)",
   "key.steamify.hotbar_pad": "الشريط بلوحة اللمس",
+  "key.steamify.gyro": "الجيروسكوب",
   "key.steamify.scroll_up": "التمرير لأعلى",
   "key.steamify.scroll_down": "التمرير لأسفل",
   "key.steamify.drop_stack": "رمي الكومة كاملة",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "انسَ",
   "steamify.controllers.forget.tooltip": "يزيل وحدة التحكم هذه من القائمة. ستحصل على ملف شخصي جديد في المرة القادمة التي تتصل فيها",
   "steamify.option.gyro.playerSpace": "الدوران الأفقي",
-  "steamify.option.gyro.playerSpace.tooltip": "مفعّل: يتبع الدوران يمينًا ويسارًا الأفق مهما أمسكت يد التحكم، فيُدير كلٌّ من الانعراج والميلان (Player Space في Steam). متوقف: يُدير فقط تدوير يد التحكم حول محورها الرأسي"
+  "steamify.option.gyro.playerSpace.tooltip": "مفعّل: يتبع الدوران يمينًا ويسارًا الأفق مهما أمسكت يد التحكم، فيُدير كلٌّ من الانعراج والميلان (Player Space في Steam). متوقف: يُدير فقط تدوير يد التحكم حول محورها الرأسي",
+  "steamify.option.gyro.trackball": "كرة تتبع الجيروسكوب",
+  "steamify.option.gyro.trackball.tooltip": "عند ترك زر الجيروسكوب أثناء الدوران تستمر الكاميرا في الدوران وتتباطأ مثل دفعة لوحة اللمس، حسب احتكاك كرة التتبع"
 }

@@ -456,6 +456,7 @@ object Steamify : ClientModInitializer {
             Bindings.minimize -> if (down) SDL_MinimizeWindow(window())
             Bindings.debugOverlay -> if (down) mc.debugEntries.toggleDebugOverlay()
             Bindings.hotbarPad -> hotbarPadOn = down
+            Bindings.gyro -> {} // read straight from the buttons in frame()
             // Real wheel notches through MC's mouse handler, so zoom mods and anything else listening see a mouse
             Bindings.scrollUp -> if (down) scroll(1.0)
             Bindings.scrollDown -> if (down) scroll(-1.0)
@@ -926,13 +927,13 @@ object Steamify : ClientModInitializer {
         val lookTest = screen as? OnboardingScreen
         val lookTesting = lookTest?.testsLook() == true
         val playing = (!inMenu || lookTesting) && mc.isWindowActive
-        // Steam Controller convention: gyro steers only while the thumb rests on the right pad. Without one
-        // (DualSense, Switch Pro) it's on while the controller is in use. Action sets can switch it to always on or off, e.g. off while
-        // a grip is let go (ratcheting)
+        // Gyro steers while its bind is held: by default the thumb resting on the right pad, Steam's convention.
+        // Action sets can switch it to always on or off, e.g. off while a grip is let go (ratcheting)
+        val wasGyro = gyroActive
         gyroActive = playing && when (ActionSets.gyro()) {
             ActionSet.Gyro.ALWAYS -> true
             ActionSet.Gyro.OFF -> false
-            else -> rightPad.down || !hasRightPad && controllerInHand()
+            else -> gyroHeld()
         }
         var gYaw: Double
         var gPitch: Double
@@ -951,6 +952,7 @@ object Steamify : ClientModInitializer {
             // The pad drove the cursor here; a fling from it must not turn the camera once the menu closes
             rightPad.vx = 0.0; rightPad.vy = 0.0
             rightPad.history.clear()
+            gyroVx = 0.0; gyroVy = 0.0
             val px = if (rightPad.down) rightPad.smooth.x * dt else 0.0
             val py = if (rightPad.down) rightPad.smooth.y * dt else 0.0
             val speed = Settings[Tune.CURSOR_SPEED] / 100.0
@@ -977,8 +979,9 @@ object Steamify : ClientModInitializer {
         gyroScale += (target - gyroScale) * (1 - exp(-dt / STEADY_AIM_TAU))
         val stickRate = STICK_DEG_PER_SEC * Settings.effective(Tune.STICK_SPEED) / 100.0
         val padRate = PAD_DEG_PER_WIDTH * Settings.effective(Tune.PAD_SPEED) / 100.0
-        var yaw = rx * abs(rx) * stickRate * dt + rightPad.vx * padRate * dt + gYaw * gyroScale
-        var pitch = ry * abs(ry) * stickRate * dt + rightPad.vy * padRate * dt + gPitch * gyroScale
+        gyroTrackball(gYaw, gPitch, wasGyro, dt)
+        var yaw = rx * abs(rx) * stickRate * dt + rightPad.vx * padRate * dt + (gYaw + gyroVx * dt) * gyroScale
+        var pitch = ry * abs(ry) * stickRate * dt + rightPad.vy * padRate * dt + (gPitch + gyroVy * dt) * gyroScale
         if (Settings[Flag.INVERT_Y]) pitch = -pitch
 
         // How much the player is steering with the controller this frame; aim assist only acts while they do
@@ -1032,6 +1035,46 @@ object Steamify : ClientModInitializer {
             gyroPitch += gyroSmooth.y * dt * scale * Settings.effective(Tune.GYRO_VERTICAL) / 100.0
         }
     }
+
+    /**
+     * The gyro bind held, raw so a thumb kept on the pad through a menu still aims straight after. Any gesture counts
+     * as plain holding. Nothing pressable bound (unbound, or the right pad on a controller without one): always on.
+     */
+    private fun gyroHeld(): Boolean {
+        val pressable = Bindings.effective(Bindings.gyro).filter { p -> hasRightPad || Bindings.R_PAD_TOUCH !in p.combo }
+        if (pressable.isEmpty()) return controllerInHand()
+        return pressable.any { p -> p.combo.all { held[it] } }
+    }
+
+    // Gyro trackball: letting go of the gyro bind keeps the camera turning at the speed it had, slowing down like a
+    // pad flick. Camera deg/s, before Steady Aim
+    private var gyroVx = 0.0
+    private var gyroVy = 0.0
+    private const val GYRO_FLING_TAU = 0.05 // the speed is averaged this long, so one jittery frame doesn't set it
+    private const val GYRO_FLING_MIN = 30.0 // slower than this on release is aiming, not a flick
+
+    private fun gyroTrackball(gYaw: Double, gPitch: Double, wasOn: Boolean, dt: Double) {
+        if (dt <= 0) return
+        if (gyroActive) {
+            val k = 1 - exp(-dt / GYRO_FLING_TAU)
+            // Only the measured speed while it's held; the fling itself starts on release
+            flingX += (gYaw / dt - flingX) * k
+            flingY += (gPitch / dt - flingY) * k
+            gyroVx = 0.0; gyroVy = 0.0
+            return
+        }
+        if (wasOn && Settings[Flag.GYRO_TRACKBALL] && hypot(flingX, flingY) >= GYRO_FLING_MIN) {
+            gyroVx = flingX; gyroVy = flingY
+        }
+        flingX = 0.0; flingY = 0.0
+        val k = (1 - PAD_FRICTION * Settings.effective(Tune.PAD_FRICTION) / 100.0 * dt).coerceAtLeast(0.0)
+        gyroVx *= k
+        gyroVy *= k
+        if (abs(gyroVx) < 1.0 && abs(gyroVy) < 1.0) { gyroVx = 0.0; gyroVy = 0.0 }
+    }
+
+    private var flingX = 0.0
+    private var flingY = 0.0
 
     private const val ACCEL_SLOW = 20.0 // deg/s
     private const val ACCEL_FAST = 120.0

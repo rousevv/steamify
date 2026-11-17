@@ -111,9 +111,9 @@
   "steamify.sets.places.none": "Tous",
   "steamify.sets.places.tooltip": "Clique dans un monde solo ou sur un serveur pour l'ajouter, à nouveau pour le retirer. Depuis l'écran titre : tout effacer. Avec des mondes définis, le jeu n'est actif que là. Sans déclencheur ni objets, il y est toujours actif",
   "steamify.sets.gyro": "Gyroscope : %s",
-  "steamify.sets.gyro.tooltip": "Le gyroscope tant que ce jeu est actif. Inchangé laisse les jeux en dessous décider, normalement actif tant que le pavé droit est touché",
+  "steamify.sets.gyro.tooltip": "Le gyroscope pendant que cet ensemble est actif. Inchangé le laisse aux ensembles en dessous, normalement actif tant que la touche du gyroscope est maintenue",
   "steamify.sets.gyro.inherit": "Inchangé",
-  "steamify.sets.gyro.padTouch": "Contact pavé droit",
+  "steamify.sets.gyro.padTouch": "Touche du gyroscope",
   "steamify.sets.gyro.always": "Toujours actif",
   "steamify.sets.gyro.off": "Désactivé",
   "steamify.battery.low.title": "Batterie de la manette faible",
@@ -166,6 +166,7 @@
   "key.steamify.minimize": "Réduire le jeu",
   "key.steamify.debug_overlay": "Écran de débogage (F3)",
   "key.steamify.hotbar_pad": "Barre d'action au pavé",
+  "key.steamify.gyro": "Gyroscope",
   "key.steamify.scroll_up": "Défiler vers le haut",
   "key.steamify.scroll_down": "Défiler vers le bas",
   "key.steamify.drop_stack": "Jeter la pile entière",
@@ -289,5 +290,7 @@
   "steamify.controllers.forget": "Oublier",
   "steamify.controllers.forget.tooltip": "Retire cette manette de la liste. Elle recevra un nouveau profil à sa prochaine connexion",
   "steamify.option.gyro.playerSpace": "Rotation horizontale",
-  "steamify.option.gyro.playerSpace.tooltip": "OUI : tourner à gauche et à droite suit l'horizon quelle que soit la façon dont tu tiens la manette, donc le lacet comme le roulis font tourner (Player Space de Steam). NON : seule la rotation autour de l'axe vertical de la manette fait tourner"
+  "steamify.option.gyro.playerSpace.tooltip": "OUI : tourner à gauche et à droite suit l'horizon quelle que soit la façon dont tu tiens la manette, donc le lacet comme le roulis font tourner (Player Space de Steam). NON : seule la rotation autour de l'axe vertical de la manette fait tourner",
+  "steamify.option.gyro.trackball": "Trackball du gyroscope",
+  "steamify.option.gyro.trackball.tooltip": "Relâcher la touche du gyroscope en pleine rotation laisse la caméra tourner et ralentir comme après un balayage sur le pavé tactile, selon la friction du trackball"
 }
