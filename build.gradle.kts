@@ -25,5 +25,5 @@ tasks.processResources {
     filesMatching("fabric.mod.json") { expand("version" to version) }
 }
 
-// GPL: the license travels with the jar
+// AGPL: the license travels with the jar
 tasks.jar { from("LICENSE") }

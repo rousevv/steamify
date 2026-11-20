@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// While a row collects controller buttons: Escape unbinds it like vanilla, a click or any other key just finishes
+// While capturing a controller bind: Escape unbinds like vanilla, anything else finishes
 @Mixin(KeyBindsScreen.class)
 abstract class KeyBindsScreenMixin {
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
@@ -28,7 +28,7 @@ abstract class KeyBindsScreenMixin {
 
     @Shadow private Button resetButton;
 
-    // Vanilla only enables Reset All when a keyboard key differs from its default
+    // Vanilla only enables Reset All for changed keyboard keys
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void steamify$canReset(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a, CallbackInfo ci) {
         if (Bindings.customized()) resetButton.active = true;

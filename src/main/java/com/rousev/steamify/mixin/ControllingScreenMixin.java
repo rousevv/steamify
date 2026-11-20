@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// Controlling's keyPressed can return before reaching vanilla's (search box), so KeyBindsScreenMixin may not run
+// Controlling's search box can return before vanilla's keyPressed, skipping KeyBindsScreenMixin
 @Pseudo
 @Mixin(targets = "com.blamejared.controlling.client.NewKeyBindsScreen")
 abstract class ControllingScreenMixin {
@@ -19,7 +19,6 @@ abstract class ControllingScreenMixin {
         cir.setReturnValue(true);
     }
 
-    // Controlling enables its reset button from this instead of vanilla's check
     @Inject(method = "canReset", at = @At("RETURN"), cancellable = true, require = 0)
     private void steamify$canReset(CallbackInfoReturnable<Boolean> cir) {
         if (Bindings.customized()) cir.setReturnValue(true);

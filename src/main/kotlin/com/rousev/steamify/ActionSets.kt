@@ -2,6 +2,15 @@ package com.rousev.steamify
 
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.KeyMapping
+import net.minecraft.client.gui.screens.ChatScreen
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.gui.screens.inventory.AbstractFurnaceScreen
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
+import net.minecraft.client.gui.screens.inventory.CraftingScreen
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
+import net.minecraft.client.gui.screens.inventory.InventoryScreen
+import net.minecraft.client.gui.screens.inventory.ShulkerBoxScreen
 import net.minecraft.network.chat.Component
 import org.lwjgl.sdl.SDLGamepad.SDL_GAMEPAD_BUTTON_EAST
 import java.util.Properties
@@ -10,40 +19,40 @@ import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
 
 /**
- * Action sets: extra layers of controller binds on top of the normal ones, like Steam Input's action layers.
- * A set only holds the binds it changes; everything else falls through to the layer below. Sets later in the
- * list sit on top. Each one switches on from a trigger: a button, a combo, a grip, a stick touch, or a stick or
- * trackpad pushed to its edge (virtual inputs, see Bindings).
+ * A layer of controller binds and settings on top of the normal ones, like Steam Input's action layers. It only
+ * holds what it changes; the rest falls through to the sets below it, then to the normal settings.
  */
 class ActionSet(var name: String) {
     enum class Mode(val key: String) { HOLD("hold"), TOGGLE("toggle"), RELEASED("released") }
 
-    /** Where the set can switch on. Sets were in-game only before this existed, so that's the default. */
+    // Sets were in-game only before this existed, hence the default
     enum class Where(val key: String) { GAME("game"), MENUS("menus"), BOTH("both") }
 
-    /** Gyro while the set is on. INHERIT leaves it to the sets below (normally: while the Gyro bind is held). */
+    /** INHERIT leaves it to the sets below, normally: while the Gyro bind is held. */
     enum class Gyro(val key: String) { INHERIT("inherit"), PAD_TOUCH("padTouch"), ALWAYS("always"), OFF("off") }
 
-
     var trigger: Combo = emptyList()
-    /** Item ids: the set is on while one of these is in the main hand (and the button trigger, if any, agrees). */
+    /** Main hand item ids. */
     val items = LinkedHashSet<String>()
-    /** Sensitivity and friends while the set is on. Missing = unchanged. */
     val tunes = java.util.EnumMap<Tune, Int>(Tune::class.java)
     var mode = Mode.HOLD
     var where = Where.GAME
-    /** "world:<name>" and "server:<address>": the set is only on in one of these. Empty = anywhere. */
+    /** "world:<name>" and "server:<address>". Empty = anywhere. */
     val places = LinkedHashSet<String>()
+    /** Menu kinds from ActionSets.screenKind. Overrides [where] when not empty. */
+    val screens = LinkedHashSet<String>()
     var gyro = Gyro.INHERIT
-    val binds = HashMap<String, List<Press>>() // keyed by mapping name; an empty list unbinds it in this set
-    /** Mapping names tapped as the set switches on and off, and held down the whole time it's on. */
+    /** Quick menu id by QuickMenu.source; "" puts that source back to normal. */
+    val stickMenus = HashMap<Int, String>()
+    /** By mapping name; an empty list unbinds it. */
+    val binds = HashMap<String, List<Press>>()
+    /** Mapping names. */
     var onEnter: String? = null
     var onExit: String? = null
     var whileOn: String? = null
 
     internal var toggled = false
-    internal var eligible = false // right place (game or menu, world or server) this frame
-
+    internal var eligible = false
     internal var wasHeld = false
 }
 
@@ -51,61 +60,85 @@ object ActionSets {
     private val file = FabricLoader.getInstance().configDir.resolve("steamify-sets.properties")
     val sets = ArrayList<ActionSet>()
 
-    /** Set whose binds the Controls screen is editing, null for the normal binds. */
+    /** In the Controls screen. Null for the normal binds. */
     var editing: ActionSet? = null
 
+    /** Highest priority first. */
     var active: List<ActionSet> = emptyList()
         private set
 
-    /** Top-left of the Controls screen while editing a set, so it's clear these aren't the normal binds. */
     fun editingHeader(): Component? = editing?.let { Component.translatable("steamify.sets.editing", it.name) }
 
-    fun override(m: KeyMapping): List<Press>? = active.lastOrNull { m.name in it.binds }?.binds?.get(m.name)
+    fun override(m: KeyMapping): List<Press>? = active.firstOrNull { m.name in it.binds }?.binds?.get(m.name)
 
-    fun tune(t: Tune): Int? = active.lastOrNull { t in it.tunes }?.tunes?.get(t)
+    fun tune(t: Tune): Int? = active.firstOrNull { t in it.tunes }?.tunes?.get(t)
 
-    fun gyro(): ActionSet.Gyro = active.lastOrNull { it.gyro != ActionSet.Gyro.INHERIT }?.gyro ?: ActionSet.Gyro.PAD_TOUCH
+    fun gyro(): ActionSet.Gyro = active.firstOrNull { it.gyro != ActionSet.Gyro.INHERIT }?.gyro ?: ActionSet.Gyro.PAD_TOUCH
 
-    /** Inputs that switch a set on by being pressed. They act as modifiers only and stop doing their own binds. */
+    /** Triggers are modifiers only: they stop doing their own binds. */
     fun isTrigger(input: Int) = sets.any { it.eligible && it.mode != ActionSet.Mode.RELEASED && input in it.trigger }
 
-    /** Mappings the active sets bind, for menus, where only those fire (the rest of the menu layout is built in). */
+    /** In menus only these fire; the rest of the menu layout is built in. */
     fun overridden(): Set<String> = active.flatMapTo(HashSet()) { it.binds.keys }
 
     /**
-     * Once per frame, from the raw held state (a trigger works even while swallowed), whether a menu is open and
-     * which world or server this is. Paused (Steamify's settings screens): every set is off. Returns the sets that were active before when that changed, so the caller
-     * can release what the old layout held and run the sets' enter and exit actions.
+     * Once per frame. [held] is the raw state, so triggers work even while swallowed. [paused] (Steamify's own
+     * settings screens) turns every set off. Returns the previously active sets when they changed.
      */
-    fun update(held: (Int) -> Boolean, heldItem: String?, inMenu: Boolean, place: String?, paused: Boolean): List<ActionSet>? {
-        for (s in sets) {
-            s.eligible = !paused && (if (inMenu) s.where != ActionSet.Where.GAME else s.where != ActionSet.Where.MENUS) &&
-                (s.places.isEmpty() || place in s.places)
-        }
-        for (s in sets) {
-            if (s.trigger.isEmpty()) continue
-            val down = s.trigger.all(held)
-            // Out of place, a Toggle set's button does nothing (Y in a menu won't flip an in-game set). The press is
-            // still followed there, or one held into a menu would swallow the next press back in game
-            if (s.eligible && s.mode == ActionSet.Mode.TOGGLE && down && !s.wasHeld) s.toggled = !s.toggled
-            s.wasHeld = down
-        }
-        val now = sets.filter { s ->
-            // A set with no condition at all stays off, as a new set should. Limited to menus or to some worlds
-            // with nothing else, it's always on there
-            val unconditional = s.trigger.isEmpty() && s.items.isEmpty() && s.places.isEmpty() && s.where == ActionSet.Where.GAME
-            if (!s.eligible || unconditional) return@filter false
-            val button = s.trigger.isEmpty() || when (s.mode) {
-                ActionSet.Mode.HOLD -> s.wasHeld
-                ActionSet.Mode.TOGGLE -> s.toggled
-                ActionSet.Mode.RELEASED -> !s.wasHeld
-            }
-            button && (s.items.isEmpty() || heldItem in s.items)
-        }
+    fun update(held: (Int) -> Boolean, heldItem: String?, screen: Screen?, place: String?, paused: Boolean): List<ActionSet>? {
+        val kind = screenKind(screen)
+        for (s in sets) s.eligible = !paused && isInRightScreen(s, screen, kind) && (s.places.isEmpty() || place in s.places)
+        for (s in sets) followTrigger(s, held)
+        val now = sets.filter { isOn(it, heldItem) }
         if (now == active) return null
         val before = active
         active = now
         return before
+    }
+
+    // Picked screens are menus, whatever Where says
+    private fun isInRightScreen(s: ActionSet, screen: Screen?, kind: String?) = when {
+        s.screens.isNotEmpty() -> kind in s.screens
+        screen != null -> s.where != ActionSet.Where.GAME
+        else -> s.where != ActionSet.Where.MENUS
+    }
+
+    private fun followTrigger(s: ActionSet, held: (Int) -> Boolean) {
+        if (s.trigger.isEmpty()) return
+        val down = s.trigger.all(held)
+        // Out of place a Toggle set's button does nothing, but the press is still followed, or one held into a menu
+        // would count as a new press back in game
+        if (s.eligible && s.mode == ActionSet.Mode.TOGGLE && down && !s.wasHeld) s.toggled = !s.toggled
+        s.wasHeld = down
+    }
+
+    private fun isOn(s: ActionSet, heldItem: String?): Boolean {
+        if (!s.eligible || hasNoCondition(s)) return false
+        val triggerOn = s.trigger.isEmpty() || when (s.mode) {
+            ActionSet.Mode.HOLD -> s.wasHeld
+            ActionSet.Mode.TOGGLE -> s.toggled
+            ActionSet.Mode.RELEASED -> !s.wasHeld
+        }
+        return triggerOn && (s.items.isEmpty() || heldItem in s.items)
+    }
+
+    // So a new set stays off. Limited only to menus or to some worlds, a set is always on there
+    private fun hasNoCondition(s: ActionSet) =
+        s.trigger.isEmpty() && s.items.isEmpty() && s.places.isEmpty() && s.screens.isEmpty() && s.where == ActionSet.Where.GAME
+
+    /** In picker order. */
+    val SCREEN_KINDS = listOf("inventory", "creative", "crafting", "chest", "furnace", "otherContainer", "chat", "otherMenu")
+
+    fun screenKind(s: Screen?): String? = when (s) {
+        null -> null
+        is CreativeModeInventoryScreen -> "creative"
+        is InventoryScreen -> "inventory"
+        is CraftingScreen -> "crafting"
+        is ContainerScreen, is ShulkerBoxScreen -> "chest"
+        is AbstractFurnaceScreen<*> -> "furnace"
+        is AbstractContainerScreen<*> -> "otherContainer"
+        is ChatScreen -> "chat"
+        else -> "otherMenu"
     }
 
     fun add(): ActionSet {
@@ -115,20 +148,29 @@ object ActionSets {
         return s
     }
 
+    /** Moves a set one place up (-1) or down (1). Higher sets win where two change the same thing. */
+    fun move(s: ActionSet, by: Int) {
+        val i = sets.indexOf(s)
+        val j = i + by
+        if (i < 0 || j !in sets.indices) return
+        sets[i] = sets[j]
+        sets[j] = s
+        save()
+    }
+
     fun remove(s: ActionSet) {
         sets -= s
         active = active - s
         save()
     }
 
-    // Trigger capture: buttons pressed after it starts form the trigger, committed once all are let go.
-    // Only new presses count, so a grip that's already held is picked up by letting go and touching again
+    // Only new presses count, so an already held grip is captured by letting go and touching again
     var capturing: ActionSet? = null
         private set
     private val captured = sortedSetOf<Int>()
     private var captureDeadline = 0L
     private const val CAPTURE_NS = 5_000_000_000L
-    // Holding B this long backs out with the old trigger kept; a short press still records B
+    // A short B press still records B
     private const val CANCEL_HOLD_NS = 1_000_000_000L
     private var cancelSince = 0L
 
@@ -141,13 +183,13 @@ object ActionSets {
 
     fun capturedLabel(): String = if (captured.isEmpty()) "..." else Bindings.name(captured.toList())
 
-    /** Returns true while capturing, so the caller keeps the controller away from the menu. */
+    /** True while capturing. */
     fun captureTick(now: Long, pressed: (Int) -> Boolean, held: (Int) -> Boolean): Boolean {
         val s = capturing ?: return false
         for (i in 0 until Bindings.INPUT_COUNT) if (pressed(i)) captured += i
-        val b = SDL_GAMEPAD_BUTTON_EAST
-        if (pressed(b)) cancelSince = now
-        if (held(b) && b in captured && now - cancelSince >= CANCEL_HOLD_NS) {
+        val cancel = SDL_GAMEPAD_BUTTON_EAST
+        if (pressed(cancel)) cancelSince = now
+        if (held(cancel) && cancel in captured && now - cancelSince >= CANCEL_HOLD_NS) {
             capturing = null
             return false
         }
@@ -165,7 +207,7 @@ object ActionSets {
         capturing = null
     }
 
-    /** Reads the sets file, replacing what's in memory (a profile switch swaps the file). */
+    /** Replaces what's in memory; a profile switch swaps the file. */
     fun load() {
         sets.clear()
         active = emptyList()
@@ -175,19 +217,21 @@ object ActionSets {
         val p = Properties().apply { file.inputStream().use(::load) }
         val n = p.getProperty("count")?.toIntOrNull() ?: return
         for (i in 0 until n) sets += read(p, i)
+        // Before 1.4 the bottom set won, so older files are flipped to keep what wins
+        if (p.getProperty("order") != "top") sets.reverse()
     }
 
     fun save() {
         val p = Properties()
         p.setProperty("count", sets.size.toString())
+        p.setProperty("order", "top")
         sets.forEachIndexed { i, s -> write(p, i, s) }
         file.outputStream().use { p.store(it, "Steamify action sets") }
     }
 
-    /** One set as text for the clipboard. */
     fun export(s: ActionSet): String = Share.encode(KIND, Properties().also { write(it, 0, s) })
 
-    /** Adds a set from clipboard text. Null when it isn't one. */
+    /** Null when the text isn't a set. */
     fun import(text: String): ActionSet? {
         val s = read(Share.decode(KIND, text) ?: return null, 0)
         sets += s
@@ -203,7 +247,9 @@ object ActionSets {
         s.mode = ActionSet.Mode.entries.firstOrNull { it.key == p.getProperty("set.$i.mode") } ?: ActionSet.Mode.HOLD
         s.where = ActionSet.Where.entries.firstOrNull { it.key == p.getProperty("set.$i.where") } ?: ActionSet.Where.GAME
         p.getProperty("set.$i.places")?.split('\n')?.filter(String::isNotBlank)?.let(s.places::addAll)
+        p.getProperty("set.$i.screens")?.split(',')?.filter { it in SCREEN_KINDS }?.let(s.screens::addAll)
         s.gyro = ActionSet.Gyro.entries.firstOrNull { it.key == p.getProperty("set.$i.gyro") } ?: ActionSet.Gyro.INHERIT
+        for (src in 0..3) p.getProperty("set.$i.stickMenu.$src")?.let { s.stickMenus[src] = it }
         val prefix = "set.$i.bind."
         for (k in p.stringPropertyNames()) if (k.startsWith(prefix)) s.binds[k.removePrefix(prefix)] = Bindings.parse(p.getProperty(k))
         p.getProperty("set.$i.items")?.split(',')?.filter(String::isNotBlank)?.let(s.items::addAll)
@@ -221,7 +267,9 @@ object ActionSets {
         p.setProperty("set.$i.where", s.where.key)
         // Newline-separated: world names and addresses can contain commas
         p.setProperty("set.$i.places", s.places.joinToString("\n"))
+        p.setProperty("set.$i.screens", s.screens.joinToString(","))
         p.setProperty("set.$i.gyro", s.gyro.key)
+        s.stickMenus.forEach { (src, id) -> p.setProperty("set.$i.stickMenu.$src", id) }
         s.binds.forEach { (k, v) -> p.setProperty("set.$i.bind.$k", Bindings.format(v)) }
         p.setProperty("set.$i.items", s.items.joinToString(","))
         s.tunes.forEach { (t, v) -> p.setProperty("set.$i.tune.${t.key}", v.toString()) }

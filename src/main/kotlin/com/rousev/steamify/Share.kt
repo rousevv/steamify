@@ -24,16 +24,18 @@ object Share {
         return "steamify-$kind:" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
 
-    /** Null for anything that isn't a "kind" Steamify copied: other text, a set where a profile goes, a damaged paste. */
+    /** Null for other text, another kind (a set pasted where a profile goes) or a damaged paste. */
     fun decode(kind: String, text: String): Properties? = runCatching {
-        val body = text.trim().removePrefix("steamify-$kind:").takeIf { it.length < text.trim().length } ?: return null
+        val prefix = "steamify-$kind:"
+        val trimmed = text.trim()
+        if (!trimmed.startsWith(prefix)) return null
+        val body = trimmed.removePrefix(prefix)
         val bytes = InflaterInputStream(Base64.getUrlDecoder().decode(body).inputStream()).use { it.readBytes() }
         Properties().apply { load(StringReader(bytes.decodeToString())) }
     }.getOrNull()
 
     fun copy(text: String) {
-        val mc = Minecraft.getInstance()
-        mc.keyboardHandler.clipboard = text
+        Minecraft.getInstance().keyboardHandler.clipboard = text
         toast("steamify.share.copied")
     }
 

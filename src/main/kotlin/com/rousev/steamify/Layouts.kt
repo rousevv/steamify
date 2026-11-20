@@ -1,9 +1,8 @@
 package com.rousev.steamify
 
 /**
- * Physical keyboard layouts for the on-screen keyboard. Four rows each (number row to bottom letter row),
- * unshifted and shifted, one token per key. Tokens are space separated where a key types more than one
- * character (Arabic lam-alef) or the row has no ASCII separators, otherwise one character per key.
+ * On-screen keyboard layouts: four rows from the number row down, unshifted and shifted. A row is one character
+ * per key, or space-separated keys where one key types several characters (Arabic lam-alef).
  * Dead keys (´ ^ ¨) type themselves; there is no accent composition.
  */
 class Layout(val code: String, val label: String, val name: String, val lower: List<List<String>>, val upper: List<List<String>>)
@@ -21,7 +20,7 @@ object Layouts {
             "asdfghjkl;'" to "ASDFGHJKL:\"",
             "zxcvbnm,./" to "ZXCVBNM<>?",
         ),
-        // Phonetic (traditional): letters sit on their Latin look-alikes, the layout most Bulgarians type on
+        // Traditional phonetic: letters on their Latin look-alikes
         layout("bg", "BG", "Български",
             "ч1234567890-=" to "Ч!@№$%€§*()–+",
             "явертъуиопшщю" to "ЯВЕРТЪУИОПШЩЮ",
@@ -77,7 +76,7 @@ object Layouts {
             "asdfghjklöä'" to "ASDFGHJKLÖÄ*",
             "<zxcvbnm,.-" to ">ZXCVBNM;:_",
         ),
-        // QWERTZ. Accented letters sit on the number row like on the real keyboard, digits are on shift
+        // Accented letters on the number row, digits on shift, like the real keyboard
         layout("cs", "CS", "Čeština",
             ";+ěščřžýáíé=´" to "°1234567890%ˇ",
             "qwertzuiopú)" to "QWERTZUIOP/(",
@@ -90,7 +89,7 @@ object Layouts {
             "ασδφγηξκλ΄'" to "ΑΣΔΦΓΗΞΚΛ¨\"",
             "ζχψωβνμ,./" to "ΖΧΨΩΒΝΜ<>?",
         ),
-        // Lithuanian standard: letters with diacritics on the number row, digits need AltGr there (switch to EN for them)
+        // Diacritics on the number row; the real keyboard needs AltGr for digits, here that's switching to EN
         layout("lt", "LT", "Lietuvių",
             "`ąčęėįšųū90-ž" to "~ĄČĘĖĮŠŲŪ()_Ž",
             "qwertyuiop[]\\" to "QWERTYUIOP{}|",
@@ -109,7 +108,7 @@ object Layouts {
             "ش س ي ب ل ا ت ن م ك ط" to "ِ ٍ ] [ لأ أ ـ ، / : \"",
             "ئ ء ؤ ر لا ى ة و ز ظ" to "~ ْ } { لآ آ ’ , . ؟",
         ),
-        // SI-1452. Shift gives Latin capitals like the Windows layout; brackets and parens mirror for RTL
+        // SI-1452. Shift gives Latin capitals like on Windows; brackets mirror for RTL
         layout("he", "HE", "עברית",
             ";1234567890-=" to "~!@#$%^&*)(_+",
             "/'קראטוןםפ][\\" to "QWERTYUIOP}{|",

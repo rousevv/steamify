@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// Square icon button hanging off the right of "Controls...", outside the grid the way Quark adds its config button
+// Icon button right of "Controls...", outside the grid like Quark's config button
 @Mixin(OptionsScreen.class)
 abstract class OptionsScreenMixin extends Screen {
     @Shadow @Final private Options options;
@@ -47,7 +47,7 @@ abstract class OptionsScreenMixin extends Screen {
         steamify$place();
     }
 
-    // A GUI scale change only rearranges the screen's own layout, not added buttons, so this follows "Controls..."
+    // A GUI scale change only rearranges the screen's own layout, not added buttons
     @Inject(method = "repositionElements", at = @At("TAIL"))
     private void steamify$follow(CallbackInfo ci) {
         steamify$place();

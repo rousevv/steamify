@@ -19,7 +19,7 @@ public interface ContainerScreenAccessor {
     @Accessor("hoveredSlot")
     @Nullable Slot steamify$hoveredSlot();
 
-    // The screen's own click path: creative turns it into creative packets, survival into container clicks
+    // Through the screen so creative sends creative packets
     @Invoker("slotClicked")
     void steamify$slotClicked(Slot slot, int slotId, int buttonNum, ContainerInput input);
 }

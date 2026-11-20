@@ -10,14 +10,12 @@ import net.minecraft.world.inventory.Slot
 import net.minecraft.world.item.ItemStack
 
 /**
- * X in inventories, Item Scroller style:
- * - Held while the pointer moves (right pad, stick or left pad pointing): every slot passed over is shift-clicked.
- * - With a stack on the cursor over an empty slot: the stack goes there and every matching item from the other
- *   side follows it, so the whole kind ends up in that inventory.
+ * X in inventories, Item Scroller style. Held while the pointer moves, it shift-clicks every slot passed over.
+ * With a stack on the cursor over an empty slot, the stack goes there and every matching item follows it.
  */
 object QuickMove {
     private var held = false
-    private var last: Slot? = null
+    private var lastSlot: Slot? = null
 
     private fun hovered(screen: AbstractContainerScreen<*>) = (screen as ContainerScreenAccessor).`steamify$hoveredSlot`()
 
@@ -28,7 +26,7 @@ object QuickMove {
     fun press(screen: AbstractContainerScreen<*>): Boolean {
         val s = hovered(screen) ?: return false
         held = true
-        last = s
+        lastSlot = s
         val carried = screen.menu.carried
         when {
             !carried.isEmpty && !s.hasItem() -> moveAll(screen, s, carried.copy())
@@ -39,25 +37,21 @@ object QuickMove {
 
     fun release() {
         held = false
-        last = null
+        lastSlot = null
     }
 
-    /** Every frame in a container screen while X is down. */
     fun update(screen: AbstractContainerScreen<*>) {
         if (!held) return
         val s = hovered(screen) ?: return
-        if (s === last) return
-        last = s
+        if (s === lastSlot) return
+        lastSlot = s
         if (s.hasItem() && screen.menu.carried.isEmpty) click(screen, s, ContainerInput.QUICK_MOVE)
     }
 
-    // Slots whose items should follow a stack put down in target. Quick move sends a slot's items across the menu,
-    // so only slots on the other side from the target can be used: in a chest that's the chest when the target is
-    // in your inventory, and your whole inventory (hotbar too) when it's in the chest. A hotbar slot quick-moved
-    // there would go into the chest, not toward the target. Only the survival inventory, with nothing but your
-    // own slots, quick-moves between hotbar and the rest, so there those are the two sides
+    // Quick move sends items to the other side of the menu, so only that side can feed the target. In the survival
+    // inventory the two sides are the hotbar and the rest; anywhere else, your inventory and the container
     private fun sources(screen: AbstractContainerScreen<*>, target: Slot): List<Slot> {
-        // Armor and offhand sit past the main inventory and stay where they are, as does a crafting result
+        // Armor, offhand and crafting results stay put
         val slots = screen.menu.slots.filter { s ->
             s !is ResultSlot && !(s.container is Inventory && s.containerSlot >= Inventory.INVENTORY_SIZE)
         }

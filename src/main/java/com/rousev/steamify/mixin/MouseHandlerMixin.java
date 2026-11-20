@@ -17,8 +17,7 @@ abstract class MouseHandlerMixin {
         Steamify.frame();
     }
 
-    // A finger on the on-screen keyboard types; the click SDL makes from it mustn't also hit what's under the keys.
-    // Steamify's own clicks (A, pad clicks) still go through
+    // A touch on the on-screen keyboard types; SDL's click from that touch mustn't also hit what's under it
     @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
     private void steamify$touchKeyboard(long handle, MouseButtonInfo info, int action, CallbackInfo ci) {
         if (Keyboard.getSwallowMouse() && !Steamify.synthetic) ci.cancel();

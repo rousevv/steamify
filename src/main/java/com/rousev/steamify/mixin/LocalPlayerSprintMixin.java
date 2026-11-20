@@ -7,8 +7,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// Vanilla sprints at any forward tilt, so a barely pushed stick could sprint at a crawl. Both checks are the
-// client's own; the server, FOV, particles and hunger all follow the sprint state the client sends
+// Vanilla sprints at any forward tilt, so a barely pushed stick would sprint at a crawl.
+// Client-side checks only; the server follows the sprint state the client sends
 @Mixin(LocalPlayer.class)
 abstract class LocalPlayerSprintMixin {
     @Inject(method = "canStartSprinting", at = @At("RETURN"), cancellable = true)

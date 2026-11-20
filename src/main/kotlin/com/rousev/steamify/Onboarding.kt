@@ -14,19 +14,19 @@ import kotlin.math.tan
 
 /** First boot with a controller: hotbar, binds on screen, haptic strength, gyro calibration, look speeds, keyboard layouts. */
 class OnboardingScreen(private val last: Screen?) : Screen(Component.translatable("steamify.onboard.title")) {
-    // The trackpad hotbar page only makes sense with the hardware for it
+    // The trackpad hotbar needs trackpads
     private val first = if (Steamify.steamHardware()) HOTBAR else BINDS
     private var page = first
     private val row = ArrayList<AbstractWidget>()
     private val footer = ArrayList<AbstractWidget>()
 
-    /** The hotbar page keeps the left pad for its preview instead of pointing at buttons. */
+    /** The hotbar page uses the left pad for its preview instead of pointing at buttons. */
     fun ownsLeftPad() = page == HOTBAR
 
     /** The look page turns a test view instead of moving the cursor. */
     fun testsLook() = page == LOOK
 
-    // Test view direction, degrees: yaw right and pitch down positive, like the player's
+    // Degrees, signed like the player's: yaw right and pitch down positive
     private var yaw = 0.0
     private var pitch = 0.0
 
@@ -38,39 +38,17 @@ class OnboardingScreen(private val last: Screen?) : Screen(Component.translatabl
     override fun init() {
         row.clear()
         footer.clear()
-        when (page) {
-            HOTBAR -> {
-                lateinit var spot: Button
-                row += Button.builder(styleLabel()) { b ->
-                    Settings[Flag.HOTBAR_STRIP] = !Settings[Flag.HOTBAR_STRIP]
-                    b.message = styleLabel()
-                    spot.active = !Settings[Flag.HOTBAR_STRIP]
-                }.width(W).build()
-                spot = Button.builder(spotLabel()) { b ->
-                    Settings.gridSpot = GridSpot.entries[(Settings.gridSpot.ordinal + 1) % GridSpot.entries.size]
-                    b.message = spotLabel()
-                }.width(W).build()
-                spot.active = !Settings[Flag.HOTBAR_STRIP]
-                row += spot
-            }
-            BINDS -> row += flag(Flag.SHOW_BINDS).createButton(minecraft.options, 0, 0, W)
-            HAPTICS -> {
-                row += Strength()
-                row += Button.builder(Component.translatable("steamify.onboard.testClick")) {
-                    Steamify.feedback(Haptic.PAD_CLICK, left = true, right = true)
-                }.width(W / 2 - 2).build()
-                row += Button.builder(Component.translatable("steamify.onboard.testRumble")) {
-                    Steamify.haptic(Haptic.LANDING, left = true, right = true, ms = 200)
-                }.width(W / 2 - 2).build()
-            }
-            GYRO -> if (Steamify.hasGyro()) row += Button.builder(Component.translatable("steamify.calibrate.button")) {
+        row += when (page) {
+            HOTBAR -> hotbarButtons()
+            BINDS -> listOf(flag(Flag.SHOW_BINDS).createButton(minecraft.options, 0, 0, W))
+            HAPTICS -> hapticButtons()
+            GYRO -> if (Steamify.hasGyro()) listOf(Button.builder(Component.translatable("steamify.calibrate.button")) {
                 minecraft.gui.setScreen(GyroCalibrationScreen(this))
-            }.width(W).build()
-            LOOK -> {
-                row += listOf(tune(Tune.STICK_SPEED, ::percent), tune(Tune.PAD_SPEED, ::percent), tune(Tune.GYRO, ::multiplier), flag(Flag.INVERT_Y))
-                    .map { it.createButton(minecraft.options, 0, 0, W) }
-            }
-            LAYOUTS -> row += Layouts.all.map { layoutOption(it).createButton(minecraft.options, 0, 0, 110) }
+            }.width(W).build()) else emptyList()
+            LOOK -> listOf(tune(Tune.STICK_SPEED, ::percent), tune(Tune.PAD_SPEED, ::percent), tune(Tune.GYRO, ::multiplier), invertYOption())
+                .map { it.createButton(minecraft.options, 0, 0, W) }
+            LAYOUTS -> Layouts.all.map { layoutOption(it).createButton(minecraft.options, 0, 0, 110) }
+            else -> emptyList()
         }
         footer += Button.builder(if (page == first) Component.translatable("steamify.onboard.skip") else CommonComponents.GUI_BACK) {
             if (page == first) onClose() else turn(-1)
@@ -82,37 +60,64 @@ class OnboardingScreen(private val last: Screen?) : Screen(Component.translatabl
         repositionElements()
     }
 
+    private fun hotbarButtons(): List<Button> {
+        val spot = Button.builder(spotLabel()) { b ->
+            Settings.gridSpot = GridSpot.entries[(Settings.gridSpot.ordinal + 1) % GridSpot.entries.size]
+            b.message = spotLabel()
+        }.width(W).build()
+        spot.active = !Settings[Flag.HOTBAR_STRIP]
+        val style = Button.builder(styleLabel()) { b ->
+            Settings[Flag.HOTBAR_STRIP] = !Settings[Flag.HOTBAR_STRIP]
+            b.message = styleLabel()
+            spot.active = !Settings[Flag.HOTBAR_STRIP]
+        }.width(W).build()
+        return listOf(style, spot)
+    }
+
+    private fun hapticButtons() = listOf(
+        Strength(),
+        Button.builder(Component.translatable("steamify.onboard.testClick")) {
+            Steamify.feedback(Haptic.PAD_CLICK, left = true, right = true)
+        }.width(W / 2 - 2).build(),
+        Button.builder(Component.translatable("steamify.onboard.testRumble")) {
+            Steamify.haptic(Haptic.LANDING, left = true, right = true, ms = 200)
+        }.width(W / 2 - 2).build(),
+    )
+
     private fun turn(by: Int) {
         page += by
         rebuildWidgets()
     }
 
     override fun repositionElements() {
-        // The hotbar page keeps the corners, middle and bottom edge free for the preview: buttons go
-        // just under where the center grid pops up
+        // Corners, middle and bottom edge stay free for the hotbar preview
         if (page == HOTBAR) {
             place(row, height / 2 + 40)
             place(footer, height / 2 + 64)
         } else {
             place(row, ROW_Y)
-            place(footer, height - 28)
+            // The binds page draws the in-game hotbar along the bottom edge
+            place(footer, if (page == BINDS) height - 28 - HOTBAR_CLEARANCE else height - 28)
         }
     }
 
-    // Centered lines of widgets, wrapping to as many lines as the width needs
-    private fun place(ws: List<AbstractWidget>, y: Int) {
-        var line = y
-        var rest = ws
+    // Centered, wrapping onto more lines as needed
+    private fun place(widgets: List<AbstractWidget>, top: Int) {
+        val gap = 4
+        fun lineWidth(line: List<AbstractWidget>) = line.sumOf { it.width + gap } - gap
+        var y = top
+        var rest = widgets
         while (rest.isNotEmpty()) {
-            var n = 1
-            while (n < rest.size && rest.take(n + 1).sumOf { it.width + 4 } <= width - 20) n++
-            var x = width / 2 - (rest.take(n).sumOf { it.width + 4 } - 4) / 2
-            for (w in rest.take(n)) {
-                w.setPosition(x, line)
-                x += w.width + 4
+            var count = 1
+            while (count < rest.size && lineWidth(rest.take(count + 1)) + gap <= width - 20) count++
+            val line = rest.take(count)
+            var x = width / 2 - lineWidth(line) / 2
+            for (w in line) {
+                w.setPosition(x, y)
+                x += w.width + gap
             }
-            rest = rest.drop(n)
-            line += 24
+            rest = rest.drop(count)
+            y += 24
         }
     }
 
@@ -138,34 +143,33 @@ class OnboardingScreen(private val last: Screen?) : Screen(Component.translatabl
         if (page == LOOK) dots(g, row.maxOf { it.bottom } + 4, height - 36)
     }
 
-    // Dots every 15 degrees around the test view, projected with the game's FOV so they move across the
-    // screen exactly as the world would. The straight-ahead column is yellow and the horizon blue
+    // A dot every 15 degrees around the test view, projected with the game's FOV so they move exactly as the
+    // world would. Straight ahead is yellow, the horizon blue
     private fun dots(g: GuiGraphicsExtractor, top: Int, bottom: Int) {
-        val f = height / 2 / tan(Math.toRadians(minecraft.options.fov().get() / 2.0))
-        val a = Math.toRadians(yaw)
-        val b = Math.toRadians(pitch)
-        for (ty in -180 until 180 step 15) for (tp in -75..75 step 15) {
-            val t = Math.toRadians(ty.toDouble())
-            val p = Math.toRadians(tp.toDouble())
-            val x = sin(t) * cos(p)
-            val y = sin(p)
-            val z = cos(t) * cos(p)
-            val x1 = x * cos(a) - z * sin(a)
-            val z1 = x * sin(a) + z * cos(a)
-            val y2 = y * cos(b) - z1 * sin(b)
-            val z2 = y * sin(b) + z1 * cos(b)
-            if (z2 <= 0.1) continue
-            val sx = (width / 2 + x1 / z2 * f).toInt()
-            val sy = (height / 2 + y2 / z2 * f).toInt()
-            if (sy !in top..bottom || sx !in 0..width) continue
+        val focal = height / 2 / tan(Math.toRadians(minecraft.options.fov().get() / 2.0))
+        val viewYaw = Math.toRadians(yaw)
+        val viewPitch = Math.toRadians(pitch)
+        for (dotYawDeg in -180 until 180 step 15) for (dotPitchDeg in -75..75 step 15) {
+            val dotYaw = Math.toRadians(dotYawDeg.toDouble())
+            val dotPitch = Math.toRadians(dotPitchDeg.toDouble())
+            val x = sin(dotYaw) * cos(dotPitch)
+            val y = sin(dotPitch)
+            val z = cos(dotYaw) * cos(dotPitch)
+            val yawedX = x * cos(viewYaw) - z * sin(viewYaw)
+            val yawedZ = x * sin(viewYaw) + z * cos(viewYaw)
+            val viewY = y * cos(viewPitch) - yawedZ * sin(viewPitch)
+            val depth = y * sin(viewPitch) + yawedZ * cos(viewPitch)
+            if (depth <= 0.1) continue
+            val screenX = (width / 2 + yawedX / depth * focal).toInt()
+            val screenY = (height / 2 + viewY / depth * focal).toInt()
+            if (screenY !in top..bottom || screenX !in 0..width) continue
             val color = when {
-                ty == 0 -> 0xFFFFDD55.toInt()
-                tp == 0 -> 0xFF5AA8FF.toInt()
+                dotYawDeg == 0 -> 0xFFFFDD55.toInt()
+                dotPitchDeg == 0 -> 0xFF5AA8FF.toInt()
                 else -> -1
             }
-            g.fill(sx - 1, sy - 1, sx + 2, sy + 2, color)
+            g.fill(screenX - 1, screenY - 1, screenX + 2, screenY + 2, color)
         }
-        // Crosshair
         g.fill(width / 2 - 4, height / 2, width / 2 + 5, height / 2 + 1, 0xFFFFFFFF.toInt())
         g.fill(width / 2, height / 2 - 4, width / 2 + 1, height / 2 + 5, 0xFFFFFFFF.toInt())
     }
@@ -176,7 +180,7 @@ class OnboardingScreen(private val last: Screen?) : Screen(Component.translatabl
     private fun spotLabel() = Component.translatable("steamify.option.hotbar.gridSpot")
         .append(": ").append(Component.translatable("steamify.gridSpot.${Settings.gridSpot.key}"))
 
-    // Master strength. Every step clicks, so the slider itself is the test
+    // Every step clicks, so the slider is its own test
     private class Strength : AbstractSliderButton(0, 0, W, 20, Component.empty(), Settings[Tune.HAPTICS] / MAX) {
         init { updateMessage() }
 
@@ -212,5 +216,6 @@ class OnboardingScreen(private val last: Screen?) : Screen(Component.translatabl
         const val LAST = LAYOUTS
         const val W = 150
         const val ROW_Y = 56
+        const val HOTBAR_CLEARANCE = 26
     }
 }

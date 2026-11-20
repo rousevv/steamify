@@ -5,33 +5,42 @@ import kotlin.math.hypot
 
 /**
  * GyroWiki's soft tiered smoothing plus tightening, for a 2D rate (gyro deg/s, pad widths/s).
- * Above [hi] input passes untouched so flicks stay instant. Below [lo] it's fully averaged
- * over ~[tau] seconds, which is what kills hand tremor and thumb noise. Below [tight] it's
- * also scaled toward zero, so slow drift (a resting thumb flattening on the pad) never moves the camera.
+ * Fast input passes raw so flicks stay instant, slow input is averaged to kill tremor, and the slowest is
+ * scaled toward zero so drift (a thumb flattening on the pad) never moves the camera.
  */
-class Smoother(private val tight: Double, private val lo: Double, private val hi: Double, private val tau: Double) {
-    private var sx = 0.0
-    private var sy = 0.0
+class Smoother(
+    private val tightenBelow: () -> Double,
+    private val smoothBelow: Double,
+    private val rawAbove: Double,
+    private val smoothSeconds: Double,
+    private val strength: () -> Double = { 1.0 }, // scales both thresholds, 0 = off
+) {
+    private var averageX = 0.0
+    private var averageY = 0.0
     var x = 0.0; private set
     var y = 0.0; private set
 
     fun apply(inX: Double, inY: Double, dt: Double) {
-        var ix = inX
-        var iy = inY
-        val speed = hypot(ix, iy)
-        if (tight > 0 && speed < tight) {
-            ix *= speed / tight
-            iy *= speed / tight
-        }
-        val direct = ((speed - lo) / (hi - lo)).coerceIn(0.0, 1.0)
-        val k = 1 - exp(-dt / tau)
-        sx += (ix * (1 - direct) - sx) * k
-        sy += (iy * (1 - direct) - sy) * k
-        x = ix * direct + sx
-        y = iy * direct + sy
+        val speed = hypot(inX, inY)
+        val tighten = tightenBelow()
+        val scale = if (tighten > 0 && speed < tighten) speed / tighten else 1.0
+        val tightX = inX * scale
+        val tightY = inY * scale
+
+        val strength = strength()
+        val raw = if (strength <= 0) 1.0
+            else ((speed - smoothBelow * strength) / ((rawAbove - smoothBelow) * strength)).coerceIn(0.0, 1.0)
+        val follow = 1 - exp(-dt / smoothSeconds)
+        averageX += (tightX * (1 - raw) - averageX) * follow
+        averageY += (tightY * (1 - raw) - averageY) * follow
+        x = tightX * raw + averageX
+        y = tightY * raw + averageY
     }
 
     fun reset() {
-        sx = 0.0; sy = 0.0; x = 0.0; y = 0.0
+        averageX = 0.0
+        averageY = 0.0
+        x = 0.0
+        y = 0.0
     }
 }

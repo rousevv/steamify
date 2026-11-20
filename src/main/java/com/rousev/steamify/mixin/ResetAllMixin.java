@@ -12,8 +12,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// Reset All also resets controller binds. Vanilla's button is a lambda, so it's recognised by its label.
-// Controlling asks first: its first press only arms ("Confirm?"), the second one resets
+// Reset All also resets controller binds. Vanilla's button is a lambda, so it's found by its label.
+// Controlling's first press only arms ("Confirm?"), the second resets
 @Mixin(Button.class)
 abstract class ResetAllMixin {
     @Unique private static final Component RESET_ALL = Component.translatable("controls.resetAll");

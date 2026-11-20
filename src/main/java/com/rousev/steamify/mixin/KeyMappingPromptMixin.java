@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// Every "press [key]" label in the game, vanilla and mods alike, asks this for the key's name
+// Every "press [key]" prompt, vanilla or modded, names its key through this
 @Mixin(KeyMapping.class)
 abstract class KeyMappingPromptMixin {
     @Inject(method = "getTranslatedKeyMessage", at = @At("RETURN"), cancellable = true)

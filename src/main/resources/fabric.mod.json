@@ -6,7 +6,7 @@
   "description": "Proper implementation of the Steam Controller in Minecraft",
   "authors": ["rousev"],
   "contact": { "sources": "https://github.com/rousevv/steamify" },
-  "license": "GPL-3.0-only",
+  "license": "AGPL-3.0-only",
   "icon": "assets/steamify/icon.png",
   "environment": "client",
   "entrypoints": {

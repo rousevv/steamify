@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// Room for the controller column so long keybind names don't run under it
+// Room for the controller column
 @Mixin(KeyBindsList.class)
 abstract class KeyBindsListMixin {
     @Inject(method = "getRowWidth", at = @At("RETURN"), cancellable = true)

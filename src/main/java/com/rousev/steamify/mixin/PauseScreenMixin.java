@@ -9,7 +9,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// Profile button left of "Options...", same as on the title screen
 @Mixin(PauseScreen.class)
 abstract class PauseScreenMixin extends Screen {
     protected PauseScreenMixin(Component title) {

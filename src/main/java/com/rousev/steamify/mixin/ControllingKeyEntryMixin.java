@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-// Controlling replaces the Key Binds rows with its own class; same controller column as KeyEntryMixin
+// KeyEntryMixin for Controlling's own Key Binds rows
 @Pseudo
 @Mixin(targets = "com.blamejared.controlling.client.NewKeyBindsList$KeyEntry")
 abstract class ControllingKeyEntryMixin {

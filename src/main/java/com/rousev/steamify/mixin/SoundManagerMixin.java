@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// Explosions, thunder and shield blocks all announce themselves with a positioned sound
+// Explosions, thunder and shield blocks all come with a positioned sound
 @Mixin(SoundManager.class)
 abstract class SoundManagerMixin {
     @Inject(method = "play", at = @At("HEAD"))

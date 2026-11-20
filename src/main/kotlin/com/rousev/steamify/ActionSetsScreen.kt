@@ -17,24 +17,33 @@ import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.options.controls.KeyBindsScreen
 import net.minecraft.network.chat.CommonComponents
 import net.minecraft.network.chat.Component
+import net.minecraft.client.input.KeyEvent
+import net.minecraft.client.input.MouseButtonEvent
+import com.rousev.steamify.TabbedScreen.Companion.lastTab
 
 private fun modeLabel(m: ActionSet.Mode) = Component.translatable("steamify.sets.mode.${m.key}")
 private fun whereLabel(w: ActionSet.Where) = Component.translatable("steamify.sets.where.${w.key}")
 private fun gyroLabel(g: ActionSet.Gyro) = Component.translatable("steamify.sets.gyro.${g.key}")
 private fun itemName(id: String) = Identifier.tryParse(id)?.let { BuiltInRegistries.ITEM.getValue(it).let { item -> item.getName(item.defaultInstance) } } ?: Component.literal(id)
 
-// Button trigger, held items, menus and worlds, whichever the set uses
-private fun triggerLabel(s: ActionSet): Component {
-    val parts = ArrayList<Component>()
-    if (s.trigger.isNotEmpty()) parts += Component.literal(Bindings.name(s.trigger))
-    s.items.firstOrNull()?.let { parts += itemName(it).copy().append(if (s.items.size > 1) " +${s.items.size - 1}" else "") }
-    if (s.where != ActionSet.Where.GAME) parts += whereLabel(s.where)
-    s.places.firstOrNull()?.let { parts += Component.literal(it.substringAfter(':') + if (s.places.size > 1) " +${s.places.size - 1}" else "") }
+/** "first +n more", or null when empty. */
+internal fun <T> firstAndCount(all: Collection<T>, name: (T) -> Component): Component? =
+    all.firstOrNull()?.let { name(it).copy().append(if (all.size > 1) " +${all.size - 1}" else "") }
+
+internal fun placeName(place: String): Component = Component.literal(place.substringAfter(':'))
+
+private fun conditionsLabel(s: ActionSet): Component {
+    val parts = listOfNotNull(
+        s.trigger.takeIf { it.isNotEmpty() }?.let { Component.literal(Bindings.name(it)) },
+        firstAndCount(s.items, ::itemName),
+        whereLabel(s.where).takeIf { s.where != ActionSet.Where.GAME },
+        firstAndCount(s.places, ::placeName),
+    )
     if (parts.isEmpty()) return Component.translatable("steamify.sets.noTrigger")
     return parts.reduce { a, b -> a.copy().append(" + ").append(b) }
 }
 
-// A list that scrolls once it outgrows the space between header and footer, and centres while it doesn't
+// Scrolls once it outgrows the space between header and footer, centred until then
 fun arrangeScrolling(layout: HeaderAndFooterLayout, list: ScrollableLayout?) {
     list?.arrangeElements()
     list?.setMaxHeight(layout.contentHeight)
@@ -44,13 +53,12 @@ fun arrangeScrolling(layout: HeaderAndFooterLayout, list: ScrollableLayout?) {
 // The scroll area is the layout's only child
 fun ScrollableLayout.scrollTo(amount: Double) = visitChildren { (it as AbstractScrollArea).setScrollAmount(amount) }
 
-/** Every action set as a button, plus one to add a set. */
 class ActionSetsScreen(private val last: Screen?) : Screen(Component.translatable("steamify.sets.title")) {
     private var layout = HeaderAndFooterLayout(this)
     private var list: ScrollableLayout? = null
     private var shown = false
 
-    // Coming back from a set's screen only repositions widgets, but the list may have changed (a set deleted, renamed)
+    // Coming back only repositions widgets, but a set may have been deleted or renamed
     override fun added() {
         if (shown) rebuildWidgets()
         shown = true
@@ -61,9 +69,14 @@ class ActionSetsScreen(private val last: Screen?) : Screen(Component.translatabl
         layout = HeaderAndFooterLayout(this)
         layout.addTitleHeader(title, font)
         val col = LinearLayout.vertical().spacing(4)
-        for (s in ActionSets.sets) {
-            val label = Component.literal(s.name).append(Component.literal("  ").append(triggerLabel(s)).withStyle { it.withColor(0xA0A0A0) })
-            col.addChild(Button.builder(label) { minecraft.gui.setScreen(ActionSetScreen(this, s)) }.width(260).build())
+        // Higher sets win where two change the same thing
+        for ((i, s) in ActionSets.sets.withIndex()) {
+            val row = LinearLayout.horizontal().spacing(4)
+            row.addChild(Button.builder(Component.literal("↑")) { ActionSets.move(s, -1); rebuildWidgets() }.width(20).build()).active = i > 0
+            row.addChild(Button.builder(Component.literal("↓")) { ActionSets.move(s, 1); rebuildWidgets() }.width(20).build()).active = i < ActionSets.sets.size - 1
+            val label = Component.literal(s.name).append(Component.literal("  ").append(conditionsLabel(s)).withStyle { it.withColor(0xA0A0A0) })
+            row.addChild(Button.builder(label) { minecraft.gui.setScreen(ActionSetScreen(this, s)) }.width(216).build())
+            col.addChild(row)
         }
         val adds = LinearLayout.horizontal().spacing(4)
         adds.addChild(Button.builder(Component.translatable("steamify.sets.add")) {
@@ -86,96 +99,117 @@ class ActionSetsScreen(private val last: Screen?) : Screen(Component.translatabl
     override fun onClose() = minecraft.gui.setScreen(last)
 }
 
-/** One set: name, trigger, how it switches the set, enter, exit and held actions, gyro while it's on, and its binds. */
-class ActionSetScreen(private val last: Screen, private val set: ActionSet) : Screen(Component.literal(set.name)) {
-    private var layout = HeaderAndFooterLayout(this)
-    private lateinit var trigger: Button
-    private lateinit var enter: Button
-    private lateinit var exit: Button
-    private lateinit var whileOn: Button
+class ActionSetScreen @JvmOverloads constructor(last: Screen, private val set: ActionSet, tab: Int = lastTab(ActionSetScreen::class.java)) :
+    TabbedScreen(last, Component.literal(set.name), tab) {
+    private var trigger: Button? = null
 
-    // Two columns, so all of it fits at large GUI scales
-    override fun init() {
-        layout = HeaderAndFooterLayout(this)
-        layout.addTitleHeader(Component.translatable("steamify.sets.title"), font)
-        val grid = GridLayout().columnSpacing(6).rowSpacing(4)
-        val rows = grid.createRowHelper(2)
-        val name = EditBox(font, 2 * W + 6, 20, Component.translatable("steamify.sets.name"))
+    override val tabs = listOf("turnsOn", "whileOn", "actions").map { Component.translatable("steamify.sets.tab.$it") }
+
+    override fun reopen(tab: Int) = ActionSetScreen(lastScreen, set, tab)
+
+    override fun addTab(tab: Int) = when (tab) {
+        0 -> turnsOnTab()
+        1 -> whileOnTab()
+        else -> actionsTab()
+    }
+
+    private fun turnsOnTab() {
+        val name = EditBox(font, 310, 20, Component.translatable("steamify.sets.name"))
         name.value = set.name
         name.setResponder { set.name = it.ifBlank { "Set" }; ActionSets.save() }
-        rows.addChild(name, 2)
-        trigger = TwoWayButton(Component.empty(), W, {
+        list?.addBig(name)
+        trigger = TwoWayButton(Component.empty(), 150, {
             minecraft.gui.setScreen(InputPickerScreen(this, Component.literal(set.name), set.trigger, allowEmpty = true) {
                 set.trigger = it
                 ActionSets.save()
             })
-        }) { ActionSets.startCapture(set) }
-        trigger.setTooltip(Tooltip.create(Component.translatable("steamify.sets.trigger.tooltip")))
-        rows.addChild(trigger)
-        rows.addChild(cycle(ActionSet.Mode.entries, { set.mode }, { set.mode = it }, ::modeLabel, "steamify.sets.mode"))
-        rows.addChild(cycle(ActionSet.Where.entries, { set.where }, { set.where = it }, ::whereLabel, "steamify.sets.where"))
-        rows.addChild(Button.builder(placesLabel()) { b ->
-            // Toggles the world or server you're in; on the title screen it clears the list
-            val here = Steamify.place()
-            when {
-                here == null -> set.places.clear()
-                !set.places.remove(here) -> set.places += here
-            }
-            ActionSets.save()
-            b.message = placesLabel()
-        }.width(W).tooltip(Tooltip.create(Component.translatable("steamify.sets.places.tooltip"))).build())
-        rows.addChild(Button.builder(itemsLabel()) { b ->
-            // Toggles whatever is in the main hand; an empty hand clears the list
-            val held = minecraft.player?.mainHandItem?.takeUnless { it.isEmpty }?.let { BuiltInRegistries.ITEM.getKey(it.item).toString() }
-            when {
-                held == null -> set.items.clear()
-                !set.items.remove(held) -> set.items += held
-            }
-            ActionSets.save()
-            b.message = itemsLabel()
-        }.width(W).tooltip(Tooltip.create(Component.translatable("steamify.sets.items.tooltip"))).build())
-        rows.addChild(cycle(ActionSet.Gyro.entries, { set.gyro }, { set.gyro = it }, ::gyroLabel, "steamify.sets.gyro"))
-        enter = rows.addChild(action("enter", { set.onEnter }) { set.onEnter = it })
-        exit = rows.addChild(action("exit", { set.onExit }) { set.onExit = it })
-        whileOn = rows.addChild(action("hold", { set.whileOn }) { set.whileOn = it })
-        rows.addChild(Button.builder(Component.translatable("steamify.sets.tunes")) { minecraft.gui.setScreen(SetTunesScreen(this, set)) }
-            .width(W).tooltip(Tooltip.create(Component.translatable("steamify.sets.tunes.tooltip"))).build())
-        rows.addChild(Button.builder(Component.translatable("steamify.sets.binds")) {
-            ActionSets.editing = set
-            minecraft.gui.setScreen(KeyBindsScreen(this, minecraft.options))
-        }.width(W).tooltip(Tooltip.create(Component.translatable("steamify.sets.binds.tooltip"))).build())
-        rows.addChild(Button.builder(Component.translatable("steamify.sets.delete")) {
-            ActionSets.remove(set)
-            onClose()
-        }.width(W).build())
-        layout.addToContents(grid)
-        val footer = LinearLayout.horizontal().spacing(8)
-        footer.addChild(Button.builder(Component.translatable("steamify.sets.copy")) { Share.copy(ActionSets.export(set)) }
-            .width(W).tooltip(Tooltip.create(Component.translatable("steamify.sets.copy.tooltip"))).build())
-        footer.addChild(Button.builder(CommonComponents.GUI_DONE) { onClose() }.width(W).build())
-        layout.addToFooter(footer)
-        layout.visitWidgets(::addRenderableWidget)
-        repositionElements()
+        }) { ActionSets.startCapture(set) }.also {
+            it.setTooltip(Tooltip.create(Component.translatable("steamify.sets.trigger.tooltip")))
+            it.message = triggerText()
+        }
+        list?.addSmall(trigger!!, cycle(ActionSet.Mode.entries, { set.mode }, { set.mode = it }, ::modeLabel, "steamify.sets.mode"))
+        list?.addSmall(cycle(ActionSet.Where.entries, { set.where }, { set.where = it }, ::whereLabel, "steamify.sets.where"),
+            button(screensLabel(), "steamify.sets.screens.tooltip") { minecraft.gui.setScreen(SetScreensScreen(this, set)) })
+        list?.addSmall(
+            button(placesLabel(set.places), "steamify.sets.places.tooltip") {
+                minecraft.gui.setScreen(PlacesScreen(this, Component.literal(set.name), set.places, ActionSets::save))
+            },
+            button(itemsLabel(), "steamify.sets.items.tooltip") { b ->
+                toggleHeldItem()
+                b.message = itemsLabel()
+            })
     }
 
-    // The trigger label follows the capture as it happens. Enter and exit catch up after their picker closes
-    override fun tick() {
+    // An empty hand clears the list
+    private fun toggleHeldItem() {
+        val held = minecraft.player?.mainHandItem?.takeUnless { it.isEmpty }?.let { BuiltInRegistries.ITEM.getKey(it.item).toString() }
+        when {
+            held == null -> set.items.clear()
+            !set.items.remove(held) -> set.items += held
+        }
+        ActionSets.save()
+    }
+
+    private fun whileOnTab() {
+        list?.addSmall(
+            button(Component.translatable("steamify.sets.binds"), "steamify.sets.binds.tooltip") {
+                ActionSets.editing = set
+                minecraft.gui.setScreen(KeyBindsScreen(this, minecraft.options))
+            },
+            button(Component.translatable("steamify.sets.bindables"), "steamify.sets.bindables.tooltip") {
+                minecraft.gui.setScreen(SetBindablesScreen(this, set))
+            })
+        list?.addSmall(
+            button(Component.translatable("steamify.sets.stickMenus"), "steamify.sets.stickMenus.tooltip") {
+                minecraft.gui.setScreen(SetMenusScreen(this, set))
+            },
+            button(Component.translatable("steamify.sets.tunes"), "steamify.sets.tunes.tooltip") {
+                minecraft.gui.setScreen(SetTunesScreen(this, set))
+            })
+        list?.addBig(cycle(ActionSet.Gyro.entries, { set.gyro }, { set.gyro = it }, ::gyroLabel, "steamify.sets.gyro"))
+    }
+
+    private fun actionsTab() {
+        list?.addBig(action("enter", { set.onEnter }) { set.onEnter = it })
+        list?.addBig(action("exit", { set.onExit }) { set.onExit = it })
+        list?.addBig(action("hold", { set.whileOn }) { set.whileOn = it })
+    }
+
+    private fun button(message: Component, tooltipKey: String, onPress: (Button) -> Unit): Button =
+        Button.builder(message, onPress).tooltip(Tooltip.create(Component.translatable(tooltipKey))).build()
+
+    override fun addFooter() {
+        val footer = layout.addToFooter(LinearLayout.horizontal().spacing(8))
+        footer.addChild(Button.builder(Component.translatable("steamify.sets.copy")) { Share.copy(ActionSets.export(set)) }
+            .width(98).tooltip(Tooltip.create(Component.translatable("steamify.sets.copy.tooltip"))).build())
+        footer.addChild(Button.builder(Component.translatable("steamify.sets.delete")) {
+            ActionSets.remove(set)
+            onClose()
+        }.width(98).build())
+        footer.addChild(Button.builder(CommonComponents.GUI_DONE) { onClose() }.width(98).build())
+    }
+
+    private fun triggerText(): Component {
         val label = if (ActionSets.capturing === set)
             Component.literal("> ${ActionSets.capturedLabel()} <").withStyle { it.withColor(0xFFFF55) }.append(Component.translatable("steamify.sets.trigger.cancel"))
         else if (set.trigger.isEmpty()) Component.translatable("steamify.sets.trigger.none")
         else Component.literal(Bindings.name(set.trigger))
-        trigger.message = Component.translatable("steamify.sets.trigger", label)
-        enter.message = Component.translatable("steamify.sets.enter", actionName(set.onEnter))
-        exit.message = Component.translatable("steamify.sets.exit", actionName(set.onExit))
-        whileOn.message = Component.translatable("steamify.sets.hold", actionName(set.whileOn))
+        return Component.translatable("steamify.sets.trigger", label)
     }
 
-    private fun action(key: String, get: () -> String?, put: (String?) -> Unit) = Button.builder(Component.empty()) {
-        minecraft.gui.setScreen(ActionPickerScreen(this, Component.translatable("steamify.sets.$key.title", set.name), get()) { name ->
-            put(name)
-            ActionSets.save()
-        })
-    }.width(W).tooltip(Tooltip.create(Component.translatable("steamify.sets.$key.tooltip"))).build()
+    // The trigger label follows the capture as it happens
+    override fun tick() {
+        super.tick()
+        trigger?.message = triggerText()
+    }
+
+    private fun action(key: String, get: () -> String?, put: (String?) -> Unit) =
+        Button.builder(Component.translatable("steamify.sets.$key", actionName(get()))) {
+            minecraft.gui.setScreen(ActionPickerScreen(this, Component.translatable("steamify.sets.$key.title", set.name), get()) { name ->
+                put(name)
+                ActionSets.save()
+            })
+        }.tooltip(Tooltip.create(Component.translatable("steamify.sets.$key.tooltip"))).build()
 
     private fun <T> cycle(values: List<T>, get: () -> T, put: (T) -> Unit, label: (T) -> Component, key: String): Button {
         fun text() = Component.translatable(key, label(get()))
@@ -183,35 +217,47 @@ class ActionSetScreen(private val last: Screen, private val set: ActionSet) : Sc
             put(values[(values.indexOf(get()) + 1) % values.size])
             ActionSets.save()
             b.message = text()
-        }.width(W).tooltip(Tooltip.create(Component.translatable("$key.tooltip"))).build()
+        }.tooltip(Tooltip.create(Component.translatable("$key.tooltip"))).build()
     }
 
-    private fun placesLabel(): Component = Component.translatable("steamify.sets.places",
-        set.places.firstOrNull()?.let { Component.literal(it.substringAfter(':') + if (set.places.size > 1) " +${set.places.size - 1}" else "") }
-            ?: Component.translatable("steamify.sets.places.none"))
+    private fun screensLabel(): Component = Component.translatable("steamify.sets.screens",
+        firstAndCount(set.screens) { Component.translatable("steamify.sets.screen.$it") } ?: Component.translatable("steamify.sets.places.none"))
 
     private fun itemsLabel(): Component = Component.translatable("steamify.sets.items",
-        set.items.firstOrNull()?.let { itemName(it).copy().append(if (set.items.size > 1) " +${set.items.size - 1}" else "") }
-            ?: Component.translatable("steamify.sets.items.none"))
+        firstAndCount(set.items, ::itemName) ?: Component.translatable("steamify.sets.items.none"))
 
-    private companion object {
-        const val W = 150
+    // While capturing a trigger, Escape clears it and any other key or click stops the capture
+    override fun keyPressed(event: KeyEvent): Boolean {
+        if (ActionSets.capturing !== set) return super.keyPressed(event)
+        if (event.isEscape) {
+            set.trigger = emptyList()
+            ActionSets.save()
+        }
+        ActionSets.cancelCapture()
+        trigger?.message = triggerText()
+        return true
     }
 
-    override fun repositionElements() = layout.arrangeElements()
+    override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
+        if (ActionSets.capturing !== set) return super.mouseClicked(event, doubleClick)
+        ActionSets.cancelCapture()
+        trigger?.message = triggerText()
+        return true
+    }
 
     override fun onClose() {
         ActionSets.cancelCapture()
-        minecraft.gui.setScreen(last)
+        super.onClose()
     }
 }
 
-/** A set's own sensitivity values. The leftmost slider position leaves a value as it is in Controller Settings. */
+/** The leftmost slider position leaves a value to the sets below and Controller Settings. */
 class SetTunesScreen(last: Screen, private val set: ActionSet) :
     OptionsSubScreen(last, Minecraft.getInstance().options, Component.translatable("steamify.sets.tunes.title", set.name)) {
     private val shown = listOf(
         Tune.STICK_SPEED, Tune.PAD_SPEED, Tune.PAD_FRICTION, Tune.GYRO, Tune.GYRO_VERTICAL, Tune.GYRO_ACCEL, Tune.STICK_DEADZONE, Tune.STEADY_AIM_REDUCTION, Tune.AIM_ASSIST,
         Tune.STICK_EDGE, Tune.PAD_EDGE, Tune.SWIPE_STEP,
+        Tune.STICK_CURVE, Tune.STICK_ACCEL, Tune.STICK_OUTER, Tune.WHEEL_STEP, Tune.TRIGGER_THRESHOLD, Tune.TRIGGER_FULL,
     )
 
     override fun addOptions() {
@@ -226,6 +272,8 @@ class SetTunesScreen(last: Screen, private val set: ActionSet) :
                 val value: Any = when {
                     v == unchanged -> Component.translatable("steamify.sets.gyro.inherit")
                     t == Tune.GYRO -> "%d.%dx".format(v / 10, v % 10)
+                    t == Tune.STICK_CURVE -> "%d.%d".format(v / 10, v % 10)
+                    t == Tune.WHEEL_STEP -> "$v°"
                     else -> "$v%"
                 }
                 Component.translatable("options.generic_value", caption, value)
@@ -235,5 +283,17 @@ class SetTunesScreen(last: Screen, private val set: ActionSet) :
             if (v == unchanged) set.tunes.remove(t) else set.tunes[t] = v
             ActionSets.save()
         }
+    }
+}
+
+class SetScreensScreen(last: Screen, private val set: ActionSet) :
+    OptionsSubScreen(last, Minecraft.getInstance().options, Component.translatable("steamify.sets.screens.title", set.name)) {
+    override fun addOptions() {
+        list?.addSmall(*ActionSets.SCREEN_KINDS.map { kind ->
+            OptionInstance.createBoolean("steamify.sets.screen.$kind", kind in set.screens) { on ->
+                if (on) set.screens += kind else set.screens -= kind
+                ActionSets.save()
+            }
+        }.toTypedArray())
     }
 }

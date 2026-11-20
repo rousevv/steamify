@@ -19,8 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-// Controller binding button left of the keyboard one in every Controls row, mod keybinds included.
-// Right-click (LT) on it opens the press types for that keybind
+// Controller bind button left of the keyboard one in every Controls row
 @Mixin(KeyBindsList.KeyEntry.class)
 abstract class KeyEntryMixin {
     @Shadow @Final private KeyMapping key;
@@ -35,7 +34,7 @@ abstract class KeyEntryMixin {
     @Inject(method = "extractContent", at = @At("TAIL"))
     private void steamify$draw(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a, CallbackInfo ci) {
         steamify$pad.setMessage(Bindings.label(key));
-        // Clears the yellow duplicate stripe vanilla draws 6px left of the keyboard button
+        // 70 clears the yellow duplicate stripe vanilla draws left of the keyboard button
         steamify$pad.setPosition(changeButton.getX() - 70, changeButton.getY());
         steamify$pad.extractRenderState(graphics, mouseX, mouseY, a);
     }

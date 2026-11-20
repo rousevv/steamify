@@ -16,20 +16,18 @@ import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.outputStream
 
-/** Buttons that must all be held together, sorted. A single button is a one-element combo. */
+/** Inputs held together, sorted. */
 typealias Combo = List<Int>
 
-/** How a combo has to be pressed to fire, like Steam Input's activators. */
+/** Like Steam Input's activators. */
 enum class Gesture(val key: String, val tag: String) {
-    /** Held while the combo is held. */
     REGULAR("regular", ""),
-    /** A tap on release, if let go before the long press time (and no double press followed). */
+    /** A tap on release before the long press time, unless a double press follows. */
     SHORT("short", " (short)"),
-    /** Held once the combo has been held for the long press time. */
     LONG("long", " (long)"),
-    /** Held while the second press of a quick double press is held. */
+    /** Held while the second press of a double press is held. */
     DOUBLE("double", " (x2)"),
-    /** A tap the moment it's pressed, whatever else the combo does. */
+    /** A tap on press, whatever else the combo does. */
     START("start", " (start)"),
     /** A tap on release, however long it was held. */
     RELEASE("release", " (release)");
@@ -39,26 +37,29 @@ enum class Gesture(val key: String, val tag: String) {
     }
 }
 
-/** One controller bind: a combo and how it's pressed. */
 data class Press(val combo: Combo, val gesture: Gesture = Gesture.REGULAR)
 
 /**
- * Controller combos per KeyMapping, kept beside (not instead of) the keyboard binding so the
- * Controls screen can show both. Keyed by mapping name, so other mods' keybinds work the same way.
- * Any one of a mapping's combos triggers it.
+ * Controller binds per KeyMapping name, beside the keyboard binding, so other mods' keybinds work the same way.
+ * Any one of a mapping's binds triggers it.
  */
 object Bindings {
     const val LT = SDL_GAMEPAD_BUTTON_COUNT
     const val RT = LT + 1
 
-    // Virtual inputs, made from where the sticks and fingers are. Bound and captured like any button
+    // Virtual inputs, made from stick and finger positions. Ids are saved in config files, so new ones only ever
+    // go on the end
     const val L_PAD_TOUCH = RT + 1
     const val R_PAD_TOUCH = RT + 2
-    /** Held while a stick or pad is pushed past its edge threshold: up, down, left, right (each give or take 45 degrees), or any way (outer). */
+    /** Per stick and pad: up, down, left, right (each give or take 45 degrees), then OUTER (any way). */
     const val EDGES = RT + 3
-    /** One press per swipe distance a finger travels on a pad: up, down, left, right. Never held. */
+    /** Per pad: up, down, left, right. One press per swipe step. */
     const val SWIPES = EDGES + 4 * 5
-    const val INPUT_COUNT = SWIPES + 2 * 4
+    const val LT_FULL = SWIPES + 2 * 4
+    const val RT_FULL = LT_FULL + 1
+    /** Per pad: clockwise, counter-clockwise. One press per wheel step. */
+    const val WHEELS = RT_FULL + 1
+    const val INPUT_COUNT = WHEELS + 2 * 2
 
     // Edge and swipe directions
     const val UP = 0
@@ -67,28 +68,35 @@ object Bindings {
     const val RIGHT = 3
     const val OUTER = 4
 
-    /** Edge source: 0 left stick, 1 right stick, 2 left pad, 3 right pad. */
+    /** [source] numbered like QuickMenu.source. */
     fun edge(source: Int, dir: Int) = EDGES + source * 5 + dir
-    /** Swipe pad: 0 left, 1 right. */
+    /** [pad] 0 left, 1 right. */
     fun swipe(pad: Int, dir: Int) = SWIPES + pad * 4 + dir
-    fun isSwipe(i: Int) = i >= SWIPES
+    fun wheel(pad: Int, clockwise: Boolean) = WHEELS + pad * 2 + if (clockwise) 0 else 1
 
-    /** Every input by kind, for InputPickerScreen. */
+    /** Fires presses rather than being held: swipes and wheels. */
+    fun isPulse(i: Int) = i in SWIPES until LT_FULL || i in WHEELS until INPUT_COUNT
+
+    /** 0 left, 1 right. */
+    fun pulsePad(i: Int) = if (i >= WHEELS) (i - WHEELS) / 2 else (i - SWIPES) / 4
+
     val groups get() = listOf(
         "buttons" to (0 until SDL_GAMEPAD_BUTTON_MISC3).toList(),
-        "triggers" to listOf(LT, RT),
+        "triggers" to listOf(LT, RT, LT_FULL, RT_FULL),
         "touch" to CAPSENSE.toList() + listOf(L_PAD_TOUCH, R_PAD_TOUCH),
         "stickEdges" to (0..1).flatMap { s -> (UP..OUTER).map { edge(s, it) } },
         "padEdges" to (2..3).flatMap { s -> (UP..OUTER).map { edge(s, it) } },
-        "swipes" to (SWIPES until INPUT_COUNT).toList(),
+        "swipes" to (SWIPES until LT_FULL).toList(),
+        "wheels" to (WHEELS until INPUT_COUNT).toList(),
     )
 
-    // On MC's bundled SDL these are the grip / stick capacitive sensors, which read "down" whenever held
+    // MC's bundled SDL reports the grip and stick touch sensors as these buttons, "down" whenever touched
     val CAPSENSE = SDL_GAMEPAD_BUTTON_MISC3..SDL_GAMEPAD_BUTTON_MISC6
 
     private val category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("steamify", "controller"))
-    // Numbered in the order they're registered, so the Controls screen lists them that way in every language
-    // instead of alphabetically (Scroll Up above Scroll Down)
+    /** Never shown in Controls. */
+    val customCategory: KeyMapping.Category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("steamify", "macros"))
+    // Controls lists them in registration order, not alphabetically per language (Scroll Up above Scroll Down)
     private var order = 0
     private fun unbound(name: String) =
         KeyMappingHelper.registerKeyMapping(KeyMapping(name, InputConstants.Type.KEYBOARD, InputConstants.UNKNOWN.value, category, order++))
@@ -106,6 +114,7 @@ object Bindings {
     lateinit var scrollDown: KeyMapping
     lateinit var dropStack: KeyMapping
     lateinit var gyro: KeyMapping
+    lateinit var quickSwap: KeyMapping
 
     private fun each(vararg inputs: Int): List<Press> = inputs.map { Press(listOf(it)) }
 
@@ -135,9 +144,9 @@ object Bindings {
         "key.steamify.minimize" to listOf(Press(listOf(SDL_GAMEPAD_BUTTON_GUIDE, SDL_GAMEPAD_BUTTON_START))),
         // Steam alone, like tapping F3. Fires on release since Steam also starts the combos above
         "key.steamify.debug_overlay" to listOf(Press(listOf(SDL_GAMEPAD_BUTTON_GUIDE), Gesture.RELEASE)),
-        // The left pad picks hotbar slots while touched. Unbind it in an action set to free the pad for other binds
+        // Unbind it in an action set to free the left pad for other binds
         "key.steamify.hotbar_pad" to each(L_PAD_TOUCH),
-        // Steam's default: gyro while the thumb rests on the right pad. Unbound, gyro is always on
+        // Steam's default. Unbound, gyro is always on
         "key.steamify.gyro" to each(R_PAD_TOUCH),
     )
 
@@ -149,18 +158,20 @@ object Bindings {
         "L Pad", "R Pad", "R Stick Touch", "L Stick Touch", "R Grip", "L Grip", "LT", "RT",
         "L Pad Touch", "R Pad Touch",
     ) + listOf("L Stick", "R Stick", "L Pad", "R Pad").flatMap { s -> listOf("Up", "Down", "Left", "Right", "Edge").map { "$s $it" } } +
-        listOf("L Pad", "R Pad").flatMap { s -> listOf("Up", "Down", "Left", "Right").map { "$s Swipe $it" } }
+        listOf("L Pad", "R Pad").flatMap { s -> listOf("Up", "Down", "Left", "Right").map { "$s Swipe $it" } } +
+        listOf("LT Full", "RT Full") +
+        listOf("L Pad", "R Pad").flatMap { s -> listOf("$s Wheel CW", "$s Wheel CCW") }
 
     private val file = FabricLoader.getInstance().configDir.resolve("steamify.properties")
     private val overrides = HashMap<String, List<Press>>()
 
-    /** Mapping collecting controller combos in the Controls screen. */
+    /** Capturing controller binds for it. */
     @JvmField var listening: KeyMapping? = null
-    /** Which of its binds the capture replaces (BindScreen), or -1 for all of them (the Controls screen). */
+    /** The one bind a BindScreen capture replaces, or -1 for all of them (the Controls screen). */
     var slot = -1
         private set
     private val collected = ArrayList<Combo>()
-    private val holding = sortedSetOf<Int>() // combo being pressed right now, committed on full release
+    private val holding = sortedSetOf<Int>() // committed on full release
     private var deadline = 0L
     var swallowRequested = false
     private const val LISTEN_NS = 2_000_000_000L
@@ -173,6 +184,7 @@ object Bindings {
         scrollDown = unbound("key.steamify.scroll_down")
         dropStack = unbound("key.steamify.drop_stack")
         gyro = unbound("key.steamify.gyro")
+        quickSwap = unbound("key.steamify.quick_swap")
         pause = unbound("key.steamify.pause")
         gameMode = unbound("key.steamify.game_mode")
         debugMenu = unbound("key.steamify.debug_menu")
@@ -181,17 +193,17 @@ object Bindings {
         load()
     }
 
-    /** Reads the binds file, replacing what's in memory (a profile switch swaps the file). */
+    /** Replaces what's in memory; a profile switch swaps the file. */
     fun load() {
         overrides.clear()
         revision++
         if (!file.exists()) return
         val p = Properties().apply { file.inputStream().use(::load) }
-        // "5+6,0@long" = Guide+Menu, or A held long. Older files have no @gesture and read as regular presses
+        // "5+6,0@long" = Guide+Menu, or A held long
         for (name in p.stringPropertyNames()) overrides[name] = parse(p.getProperty(name))
     }
 
-    // Ids this version doesn't have (a paste from a newer one, a damaged file) are dropped: they index the input arrays
+    // Ids this version doesn't have (a paste from a newer one) would index past the input arrays
     fun parseCombo(v: String): Combo = v.split('+').mapNotNull { it.trim().toIntOrNull() }.filter { it in 0 until INPUT_COUNT }.sorted()
 
     fun parse(v: String): List<Press> = v.split(',').mapNotNull { e ->
@@ -206,25 +218,25 @@ object Bindings {
     /** The normal binds, without action sets. */
     fun of(m: KeyMapping): List<Press> = overrides[m.name] ?: defaults[m.name].orEmpty()
 
-    /** Normal binds as plain combos, for the menu layout, which ignores gestures. */
+    /** The menu layout ignores gestures. */
     fun combos(m: KeyMapping): List<Combo> = of(m).map { it.combo }
 
-    /** What's bound right now in game: the top active action set that changes this mapping, else the normal bind. */
+    /** With the active action sets. */
     fun effective(m: KeyMapping): List<Press> = ActionSets.override(m) ?: of(m)
 
-    /** What the Controls screen edits: the set being edited (falling back to the normal bind), else the normal bind. */
+    /** What the Controls screen edits. */
     fun current(m: KeyMapping): List<Press> = ActionSets.editing?.binds?.get(m.name) ?: of(m)
 
-    /** Bumped on every change, so open screens know to refresh. */
+    /** Bumped on every change, for open screens to refresh. */
     var revision = 0
         private set
 
-    // Writes go to the action set being edited in the Controls screen, if any
+    // To the action set being edited, if any
     fun set(m: KeyMapping, presses: List<Press>) {
         revision++
-        val e = ActionSets.editing
-        if (e != null) {
-            e.binds[m.name] = presses
+        val editing = ActionSets.editing
+        if (editing != null) {
+            editing.binds[m.name] = presses
             ActionSets.save()
             return
         }
@@ -237,9 +249,9 @@ object Bindings {
 
     @JvmStatic
     fun resetAll() {
-        val e = ActionSets.editing
-        if (e != null) {
-            e.binds.clear()
+        val editing = ActionSets.editing
+        if (editing != null) {
+            editing.binds.clear()
             ActionSets.save()
             return
         }
@@ -247,7 +259,7 @@ object Bindings {
         save()
     }
 
-    /** Action set editing: drop this set's change so the mapping falls through to the normal bind again. */
+    /** Drops the edited set's change, so the mapping falls through to the normal bind again. */
     @JvmStatic
     fun inherit() {
         val m = listening ?: return
@@ -262,8 +274,8 @@ object Bindings {
         file.outputStream().use { p.store(it, "Steamify controller bindings: SDL gamepad button ids, + = held together, comma = alternatives. LT=$LT RT=$RT") }
     }
 
-    // Buttons held together form one combo; press again after letting go to add another alternative.
-    // The session ends 2s after the last release, so a controller-only player never needs a confirm key
+    // Each press after letting go adds another alternative. Ends a moment after the last release, so a
+    // controller-only player never needs a confirm key
     @JvmStatic
     @JvmOverloads
     fun listen(m: KeyMapping, slot: Int = -1) {
@@ -272,7 +284,7 @@ object Bindings {
         collected.clear()
         holding.clear()
         deadline = System.nanoTime() + LISTEN_NS
-        // Whatever clicked the button (A in focus mode) is still held and must not bind itself
+        // Whatever clicked the button is still held and mustn't bind itself
         swallowRequested = true
     }
 
@@ -280,13 +292,12 @@ object Bindings {
         holding += input
     }
 
-    /** Commits the held combo once all of it is released, and ends the session on timeout. Returns true while listening. */
+    /** True while listening. */
     fun tick(now: Long, isHeld: (Int) -> Boolean): Boolean {
         if (listening == null) return false
         if (holding.isNotEmpty()) {
             if (holding.any(isHeld)) return true
             commitHolding()
-            // A single bind is done as soon as its combo is let go
             if (slot >= 0) {
                 finish()
                 return false
@@ -299,23 +310,33 @@ object Bindings {
     }
 
     /**
-     * Drops inputs a capture picked up only as a side effect: a pad's touch under its edges and swipes, a pad's
-     * edges under its swipes (the finger crosses them), and a stick's any-way edge under a directional one.
+     * Drops inputs a capture picked up only on the way to another: a pad's touch under its edges, swipes and wheels,
+     * edges a swiping finger crossed, swipes made while circling, an any-way edge under a directional one, and a
+     * trigger's light pull under its full one.
      */
     fun clean(combo: Combo): Combo = combo.filterNot { i ->
+        fun wheeled(pad: Int) = wheel(pad, true) in combo || wheel(pad, false) in combo
+        fun swiped(pad: Int) = (UP..RIGHT).any { swipe(pad, it) in combo }
         when {
             i == L_PAD_TOUCH || i == R_PAD_TOUCH -> {
                 val pad = i - L_PAD_TOUCH
-                (0..OUTER).any { edge(2 + pad, it) in combo } || (UP..RIGHT).any { swipe(pad, it) in combo }
+                (UP..OUTER).any { edge(PAD_SOURCES + pad, it) in combo } || swiped(pad) || wheeled(pad)
             }
             i in EDGES until SWIPES -> {
                 val source = (i - EDGES) / 5
-                val swiped = source >= 2 && (UP..RIGHT).any { swipe(source - 2, it) in combo }
-                swiped || (i - EDGES) % 5 == OUTER && (UP..RIGHT).any { edge(source, it) in combo }
+                val direction = (i - EDGES) % 5
+                val pad = source - PAD_SOURCES
+                val crossedBySwipe = pad >= 0 && (swiped(pad) || wheeled(pad))
+                crossedBySwipe || direction == OUTER && (UP..RIGHT).any { edge(source, it) in combo }
             }
+            i in SWIPES until LT_FULL -> wheeled(pulsePad(i))
+            i == LT -> LT_FULL in combo
+            i == RT -> RT_FULL in combo
             else -> false
         }
     }
+
+    private const val PAD_SOURCES = 2 // edge sources before the pads are the sticks
 
     private fun commitHolding() {
         val combo = clean(holding.toList())
@@ -323,7 +344,7 @@ object Bindings {
         holding.clear()
     }
 
-    // Nothing pressed means the old binding stays. A combo that was already bound keeps its gesture
+    // Nothing pressed keeps the old binding. A combo that was already bound keeps its gesture
     @JvmStatic
     fun finish() {
         val m = listening ?: return
@@ -335,7 +356,7 @@ object Bindings {
         listening = null
     }
 
-    /** A keyboard key during capture: Escape unbinds, Backspace (in a set) falls back to the normal bind, anything else finishes. */
+    /** Escape unbinds, Backspace (in a set) falls back to the normal bind, anything else finishes. */
     @JvmStatic
     fun captureKey(event: KeyEvent) {
         when {
@@ -345,27 +366,26 @@ object Bindings {
         }
     }
 
-    // Escape: the whole mapping in the Controls screen, just the one bind in BindScreen
+    // The whole mapping in the Controls screen, just the one bind in BindScreen
     @JvmStatic
     fun clear() {
         listening?.let { m -> set(m, if (slot < 0) emptyList() else current(m).filterIndexed { i, _ -> i != slot }) }
         listening = null
     }
 
-    /** Replaces one bind's buttons, keeping its gesture, or adds a bind when the slot is past the end. */
+    /** Keeps the gesture. A slot past the end adds a bind. */
     fun setCombo(m: KeyMapping, slot: Int, c: Combo) =
         set(m, current(m).toMutableList().apply { if (slot < size) this[slot] = this[slot].copy(combo = c) else add(Press(c)) })
 
-    /** Replaces one bind's gesture, from BindScreen. */
     fun setGesture(m: KeyMapping, i: Int, g: Gesture) = set(m, current(m).toMutableList().apply { this[i] = this[i].copy(gesture = g) })
 
     fun name(c: Combo) = c.joinToString("+") { padNames[it] ?: names.getOrElse(it) { "#$it" } }
 
-    // What's printed on the controller in hand, where it differs from the Steam Controller's names
+    // What's printed on the controller in hand, where it differs from the Steam Controller
     private var padNames: Map<Int, String> = emptyMap()
     private val FACE = listOf("", "A", "B", "X", "Y", "✕", "○", "□", "△")
 
-    /** Picks names for this SDL gamepad type. SDL knows where Nintendo puts A and B, so those follow the hardware. */
+    /** SDL knows where Nintendo puts A and B, so face buttons follow the hardware. */
     fun nameFor(type: Int) {
         val face = (SDL_GAMEPAD_BUTTON_SOUTH..SDL_GAMEPAD_BUTTON_NORTH).associateWith { FACE[SDL_GetGamepadButtonLabelForType(type, it)] }
         padNames = face.filterValues { it.isNotEmpty() } + when (type) {
@@ -373,11 +393,13 @@ object Bindings {
                 SDL_GAMEPAD_BUTTON_BACK to if (type == SDL_GAMEPAD_TYPE_PS5) "Create" else "Share",
                 SDL_GAMEPAD_BUTTON_GUIDE to "PS", SDL_GAMEPAD_BUTTON_START to "Options",
                 SDL_GAMEPAD_BUTTON_LEFT_SHOULDER to "L1", SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER to "R1", LT to "L2", RT to "R2",
+                LT_FULL to "L2 Full", RT_FULL to "R2 Full",
                 SDL_GAMEPAD_BUTTON_TOUCHPAD to "Touchpad", SDL_GAMEPAD_BUTTON_MISC1 to "Mute",
             )
             in SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO..SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR -> mapOf(
                 SDL_GAMEPAD_BUTTON_BACK to "-", SDL_GAMEPAD_BUTTON_GUIDE to "Home", SDL_GAMEPAD_BUTTON_START to "+",
                 SDL_GAMEPAD_BUTTON_LEFT_SHOULDER to "L", SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER to "R", LT to "ZL", RT to "ZR",
+                LT_FULL to "ZL Full", RT_FULL to "ZR Full",
                 SDL_GAMEPAD_BUTTON_MISC1 to "Capture",
             )
             SDL_GAMEPAD_TYPE_XBOX360 -> mapOf(SDL_GAMEPAD_BUTTON_BACK to "Back", SDL_GAMEPAD_BUTTON_GUIDE to "Xbox", SDL_GAMEPAD_BUTTON_START to "Start")
@@ -389,17 +411,14 @@ object Bindings {
 
     fun names(presses: List<Press>) = presses.joinToString(" / ") { name(it.combo) + it.gesture.tag }
 
-    /** The combo being captured into this slot right now, or null when it isn't. */
+    /** Null unless capturing into this slot. */
     fun capturing(m: KeyMapping, slot: Int): Component? {
         if (listening !== m || this.slot != slot) return null
-        val so = holding.takeIf { it.isNotEmpty() }?.let { name(it.toList()) } ?: "..."
-        return Component.literal("> $so <").withStyle(ChatFormatting.YELLOW)
+        val soFar = holding.takeIf { it.isNotEmpty() }?.let { name(it.toList()) } ?: "..."
+        return Component.literal("> $soFar <").withStyle(ChatFormatting.YELLOW)
     }
 
-    /**
-     * The controller button to show instead of the keyboard key while the controller is in hand. Null keeps the
-     * key: controller put down, nothing bound on it, or the Controls screen (its keyboard column must stay keys).
-     */
+    /** Shown instead of the keyboard key while the controller is in hand. Never in Controls' keyboard column. */
     @JvmStatic
     fun prompt(m: KeyMapping): Component? {
         if (!Steamify.controllerInHand() || Minecraft.getInstance().gui.screen() is KeyBindsScreen) return null
@@ -411,17 +430,17 @@ object Bindings {
     fun label(m: KeyMapping): Component {
         if (listening === m) {
             val shown = collected + listOfNotNull(holding.toList().takeIf { it.isNotEmpty() })
-            val so = if (shown.isEmpty()) "..." else shown.joinToString(" / ", transform = ::name)
-            return Component.literal("> $so <").withStyle(ChatFormatting.YELLOW)
+            val soFar = if (shown.isEmpty()) "..." else shown.joinToString(" / ", transform = ::name)
+            return Component.literal("> $soFar <").withStyle(ChatFormatting.YELLOW)
         }
-        // In a set, binds it doesn't change show the normal bind greyed out, since that's what applies
+        // A set's unchanged binds show the normal bind greyed out, since that's what applies
         val set = ActionSets.editing
         if (set != null && m.name !in set.binds) {
             val base = of(m)
             return Component.literal(if (base.isEmpty()) "-" else names(base)).withStyle(ChatFormatting.DARK_GRAY)
         }
         val combos = set?.binds?.get(m.name) ?: of(m)
-        // Red in a set: unbound on purpose there, rather than falling through
+        // Red: unbound on purpose in the set, rather than falling through
         if (combos.isEmpty()) return Component.literal("-").withStyle(if (set != null) ChatFormatting.RED else ChatFormatting.DARK_GRAY)
         return Component.literal(names(combos))
     }

@@ -12,28 +12,27 @@ It's client-side only and works on any server (however it may flag some servers'
 - The right trackpad turns the camera like a mouse, and a flick keeps it spinning like a trackball. The right stick works too, but like you didn't buy a steam controller to NOT use the trackpads did you?
 - Horizontal Turning makes left and right follow the horizon however you hold the controller, so yawing or rolling it both turn, like Steam Input's Player Space.
 - Steady Aim lowers gyro sensitivity while you draw a bow or aim a crossbow or trident, so its easier to line up shots.
+- Flick Stick does flicky sticky things
+- Edge Spin: slide your finger into the edge of the right trackpad and the camera keeps turning that way until you move it back in or lift it.
 - Optional aim assist, limited to singleplayer by default.
 
 ## Hotbar
 
 The left trackpad by default is used for choosing a hotbar slot. By default it's a 3x3 grid that pops up in the middle of the screen while you touch the pad. You can also pin the grid to a corner, where it replaces the vanilla hotbar, or keep the vanilla hotbar and slide along it.
 
-## Menus
-
-- The right trackpad and right stick move the mouse cursor.
-- The left trackpad can be used to navigate menus and inventories in a way that feels more natural
-- X shift-clicks
-- An on-screen keyboard pops up for chat, signs, books and text boxes in general, including ones added by other mods like [Scholar](https://modrinth.com/mod/scholar). It works with a touchscreen too.
-
 ## Controls
 
 You can rebind controller binds in the vanilla Controls screen, next to the keyboard ones. You can bind button combos, the back buttons, the grips and stick touches. Right-click a bind (LT) for a more advanced bind editor.
 
-Sticks and trackpads can be bound like buttons too: pushing a stick or finger past a threshold, touching a trackpad, or swiping on it. For example bind Sprint to L Stick Up to sprint when the stick is pushed all the way forward. Any input can also be picked from a list instead of pressed.
+Sticks and trackpads can be bound like buttons too: pushing a stick or finger past a threshold, touching a trackpad, swiping on it, or circling its edge like a scroll wheel. For example bind Sprint to L Stick Up to sprint when the stick is pushed all the way forward. Any input can also be picked from a list instead of pressed.
 
 Action sets are extra layers of binds on top of the normal ones. A set can switch on while you hold a button, toggle on a press, follow a grip, or follow the item in your hand, and can be limited to in game, menus, or certain worlds and servers. Each set can also change sensitivity and gyro behaviour, for example lower trackpad speed while holding a bow, and press a keybind when it switches on or off or hold one the whole time it's on.
 
 I personally use it for zooming (R5 as the trigger, my zoom keybind held while it's on, and swiping up and down on the left trackpad bound to Scroll Up and Scroll Down.)
+
+Quick menus are radial or grid menus like Steam Input's. Open one with a bind, or by pushing a stick or touching a trackpad, then pick an entry with that stick or trackpad. Each entry can run any number of commands, chat messages and keybinds. Do be careful when using these, as some servers consider it cheating.
+
+Macros do the same on a bind of their own: any number of commands, chat messages and keybinds in a row.
 
 ## Profiles
 

@@ -12,9 +12,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// Vanilla reads a motion event's position only when the queued task runs, by then from a reused or freed buffer.
-// Usually that's another event (0,0: the pointer jumps to the corner) or garbage. Steamify's cursor warps and the
-// controller's event flood make it common, so the values are read right away here
+// Vanilla reads a motion event in the queued task, when the buffer is already reused or freed: the pointer jumps
+// to 0,0 or garbage. Cursor warps and the controller's event flood make that common
 @Mixin(SDLEventHandler.class)
 abstract class SDLEventHandlerMixin {
     @Shadow @Final private Minecraft minecraft;

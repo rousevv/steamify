@@ -9,12 +9,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// A real keyboard press means the player switched to it, so the on-screen keyboard steps aside
+// A real key press means the player switched to the keyboard
 @Mixin(KeyboardHandler.class)
 abstract class KeyboardHandlerMixin {
     @Inject(method = "keyPress", at = @At("HEAD"))
     private void steamify$realKey(long handle, int action, KeyEvent event, CallbackInfo ci) {
-        if (!Steamify.synthetic) Steamify.usingController = false;
+        if (Steamify.synthetic) return;
+        Steamify.usingController = false;
+        if (action != 0) Steamify.keyPressed = true;
     }
 
     @Inject(method = "charTyped", at = @At("HEAD"))

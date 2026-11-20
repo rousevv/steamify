@@ -6,27 +6,28 @@ import net.minecraft.client.gui.layouts.HeaderAndFooterLayout
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.CommonComponents
 import net.minecraft.network.chat.Component
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
- * Steam-style gyro calibration: the controller lies still on a flat surface while its resting rate (bias)
- * is averaged for a few seconds. Any movement starts the measurement over. The result is saved, so every
- * launch starts calibrated, and its noise level tells continuous calibration what "still" looks like.
+ * Steam-style gyro calibration: averages the resting rate (bias) while the controller lies still, starting over
+ * if it moves. The measured noise tells continuous calibration what "still" looks like.
  */
 object GyroCalibration {
-    private const val MEASURE_SECS = 4.0
-    private const val MOVED_DEG = 3.0 // a sample this far off the running average means it was picked up or bumped
+    private const val MEASURE_SECONDS = 4.0
+    private const val MOVED_DEG_PER_SEC = 3.0
+    private const val MIN_SAMPLES_FOR_MOVE_CHECK = 20
 
     @Volatile var running = false
         private set
     @Volatile var done = false
         private set
-    private var secs = 0.0
-    private var n = 0
+    private var seconds = 0.0
+    private var samples = 0
     private val sum = DoubleArray(3)
-    private val sumSq = DoubleArray(3)
+    private val sumOfSquares = DoubleArray(3)
 
-    val progress get() = (secs / MEASURE_SECS).coerceIn(0.0, 1.0)
+    val progress get() = (seconds / MEASURE_SECONDS).coerceIn(0.0, 1.0)
 
     fun start() {
         reset()
@@ -39,29 +40,29 @@ object GyroCalibration {
     }
 
     private fun reset() {
-        secs = 0.0
-        n = 0
+        seconds = 0.0
+        samples = 0
         sum.fill(0.0)
-        sumSq.fill(0.0)
+        sumOfSquares.fill(0.0)
     }
 
-    /** Every raw gyro sample in deg/s, from the sensor watch on the render thread. */
+    /** Raw gyro sample in deg/s. */
     fun sample(x: Double, y: Double, z: Double, dt: Double) {
         if (!running) return
-        val v = doubleArrayOf(x, y, z)
-        if (n >= 20 && (0..2).any { kotlin.math.abs(v[it] - sum[it] / n) > MOVED_DEG }) return reset()
+        val rate = doubleArrayOf(x, y, z)
+        val moved = samples >= MIN_SAMPLES_FOR_MOVE_CHECK && (0..2).any { abs(rate[it] - sum[it] / samples) > MOVED_DEG_PER_SEC }
+        if (moved) return reset()
         for (i in 0..2) {
-            sum[i] += v[i]
-            sumSq[i] += v[i] * v[i]
+            sum[i] += rate[i]
+            sumOfSquares[i] += rate[i] * rate[i]
         }
-        n++
-        secs += dt
-        if (secs < MEASURE_SECS) return
-        val bias = DoubleArray(3) { sum[it] / n }
-        // Spread of the resting readings, all three axes together
-        val noise = sqrt((0..2).sumOf { sumSq[it] / n - bias[it] * bias[it] }.coerceAtLeast(0.0))
+        samples++
+        seconds += dt
+        if (seconds < MEASURE_SECONDS) return
+        val bias = DoubleArray(3) { sum[it] / samples }
+        val noise = sqrt((0..2).sumOf { sumOfSquares[it] / samples - bias[it] * bias[it] }.coerceAtLeast(0.0))
         Settings.setGyroCalibration(bias, noise)
-        Steamify.applyGyroBias(bias)
+        Gyro.applyBias(bias)
         running = false
         done = true
     }
@@ -77,7 +78,7 @@ class GyroCalibrationScreen(private val last: Screen?) : Screen(Component.transl
         layout.addToFooter(Button.builder(CommonComponents.GUI_DONE) { onClose() }.width(200).build())
         layout.visitWidgets(::addRenderableWidget)
         repositionElements()
-        // Once per screen: init runs again on resize, which must not restart a measurement
+        // init runs again on resize, which mustn't restart the measurement
         if (!started) {
             started = true
             GyroCalibration.start()
@@ -88,20 +89,26 @@ class GyroCalibrationScreen(private val last: Screen?) : Screen(Component.transl
 
     override fun extractRenderState(g: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
         super.extractRenderState(g, mouseX, mouseY, a)
-        val cx = width / 2
-        val cy = height / 2
+        val centerX = width / 2
+        val centerY = height / 2
         val (line, color) = when {
             !Steamify.hasGyro() -> Component.translatable("steamify.calibrate.noGyro") to 0xFFFF6060.toInt()
             GyroCalibration.done -> Component.translatable("steamify.calibrate.done") to 0xFF60FF60.toInt()
             GyroCalibration.progress == 0.0 -> Component.translatable("steamify.calibrate.waiting") to -1
             else -> Component.translatable("steamify.calibrate.measuring") to -1
         }
-        g.centeredText(font, Component.translatable("steamify.calibrate.hint"), cx, cy - 30, 0xFFA0A0A0.toInt())
-        g.centeredText(font, line, cx, cy - 12, color)
-        // Progress bar
-        val w = 160
-        g.fill(cx - w / 2 - 1, cy + 4, cx + w / 2 + 1, cy + 14, 0xFF000000.toInt())
-        g.fill(cx - w / 2, cy + 5, cx - w / 2 + (w * GyroCalibration.progress).toInt(), cy + 13, if (GyroCalibration.done) 0xFF40C040.toInt() else 0xFF5AA8FF.toInt())
+        g.centeredText(font, Component.translatable("steamify.calibrate.hint"), centerX, centerY - 30, 0xFFA0A0A0.toInt())
+        g.centeredText(font, line, centerX, centerY - 12, color)
+        progressBar(g, centerX, centerY + 4)
+    }
+
+    private fun progressBar(g: GuiGraphicsExtractor, centerX: Int, top: Int) {
+        val width = 160
+        val left = centerX - width / 2
+        val filled = (width * GyroCalibration.progress).toInt()
+        val color = if (GyroCalibration.done) 0xFF40C040.toInt() else 0xFF5AA8FF.toInt()
+        g.fill(left - 1, top, left + width + 1, top + 10, 0xFF000000.toInt())
+        g.fill(left, top + 1, left + filled, top + 9, color)
     }
 
     override fun onClose() {
