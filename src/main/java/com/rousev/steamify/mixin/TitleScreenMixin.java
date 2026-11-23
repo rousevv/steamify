@@ -6,6 +6,7 @@ import com.rousev.steamify.Steamify;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.PlainTextButton;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -20,30 +21,37 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
-// Under the menu buttons: the AI translation notice until dismissed, and a warning while Steam runs, since its
-// desktop layout doubles our inputs
+// Under the menu buttons, or along the top edge when the window is too short for that: the AI translation notice
+// until dismissed, and a warning while Steam runs, since its desktop layout doubles our inputs
 @Mixin(TitleScreen.class)
 abstract class TitleScreenMixin extends Screen {
     @Unique private static final Component STEAM_WARNING = Component.translatable("steamify.steam.warning");
     @Unique private static final Component STEAM_WARNING_FIX = Component.translatable("steamify.steam.warning.fix");
-    @Unique private static final int TEXT_WIDTH = 240;
-    @Unique private static final int BOX_WIDTH = TEXT_WIDTH + 50;
-    @Unique private static final int LINE_HEIGHT = 10;
     @Unique private static final int GAP = 6;
+    @Unique private static final int OK_WIDTH = 40;
+    @Unique private static final int BOX_WIDTH = 290;
+    @Unique private static final int TEXT_WIDTH = BOX_WIDTH - OK_WIDTH - 3 * GAP;
+    @Unique private static final int LINE_HEIGHT = 10;
+    @Unique private static final int WARNING_HEIGHT = 26;
+    // The version and copyright line
+    @Unique private static final int BOTTOM_MARGIN = 12;
     @Unique private List<FormattedCharSequence> steamify$notice;
-    @Unique private int steamify$noticeTop;
-    @Unique private int steamify$noticeHeight;
+    // Drawn by hand after the notice's box, which would otherwise cover it
+    @Unique private Button steamify$ok;
 
     protected TitleScreenMixin(Component title) {
         super(title);
     }
 
-    // Lowest widget, so rows other mods add are respected. The copyright line hugs the bottom edge and is skipped
+    // Lowest widget in the middle column, so rows other mods add are respected. Placed on each frame, since mods
+    // may still move buttons after init
     @Unique
     private int steamify$bottom() {
+        int left = width / 2 - BOX_WIDTH / 2;
         int bottom = height / 2;
         for (GuiEventListener child : children()) {
-            if (child instanceof AbstractWidget w && w.getBottom() < height - 20) bottom = Math.max(bottom, w.getBottom());
+            if (!(child instanceof AbstractWidget w) || w == steamify$ok || w instanceof PlainTextButton) continue;
+            if (w.getRight() > left && w.getX() < left + BOX_WIDTH) bottom = Math.max(bottom, w.getBottom());
         }
         return bottom;
     }
@@ -53,43 +61,48 @@ abstract class TitleScreenMixin extends Screen {
         ProfileButton profiles = ProfileButton.beside(this, children());
         if (profiles != null) addRenderableWidget(profiles);
         steamify$notice = null;
+        steamify$ok = null;
         Component text = Settings.translationNotice();
         if (text == null) return;
         steamify$notice = font.split(text, TEXT_WIDTH);
-        steamify$noticeTop = steamify$bottom() + GAP;
-        steamify$noticeHeight = Math.max(steamify$notice.size() * LINE_HEIGHT, 20) + 8;
-        int boxRight = width / 2 + BOX_WIDTH / 2;
-        addRenderableWidget(Button.builder(CommonComponents.GUI_OK, b -> {
+        steamify$ok = addWidget(Button.builder(CommonComponents.GUI_OK, b -> {
             Settings.INSTANCE.dismissTranslationNotice();
             steamify$notice = null;
+            steamify$ok = null;
             removeWidget(b);
-        }).bounds(boxRight - 44, steamify$noticeTop + (steamify$noticeHeight - 20) / 2, 40, 20).build());
+        }).size(OK_WIDTH, 20).build());
     }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void steamify$draw(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a, CallbackInfo ci) {
-        if (steamify$notice != null) steamify$drawNotice(graphics);
-        if (Steamify.steamRunning) steamify$drawSteamWarning(graphics);
+        int noticeHeight = steamify$notice != null ? Math.max(steamify$notice.size() * LINE_HEIGHT, 20) + 2 * GAP : 0;
+        int warningHeight = Steamify.steamRunning ? WARNING_HEIGHT : 0;
+        int top = steamify$bottom() + GAP;
+        if (top + noticeHeight + GAP + warningHeight > height - BOTTOM_MARGIN) top = 2;
+        if (steamify$notice != null) {
+            steamify$drawNotice(graphics, top, noticeHeight, mouseX, mouseY, a);
+            top += noticeHeight + GAP;
+        }
+        if (Steamify.steamRunning) steamify$drawSteamWarning(graphics, top);
     }
 
     @Unique
-    private void steamify$drawNotice(GuiGraphicsExtractor graphics) {
+    private void steamify$drawNotice(GuiGraphicsExtractor graphics, int top, int boxHeight, int mouseX, int mouseY, float a) {
         int left = width / 2 - BOX_WIDTH / 2;
-        graphics.fill(left, steamify$noticeTop, left + BOX_WIDTH, steamify$noticeTop + steamify$noticeHeight, 0xC0000000);
-        int y = steamify$noticeTop + (steamify$noticeHeight - steamify$notice.size() * LINE_HEIGHT) / 2 + 1;
+        graphics.fill(left, top, left + BOX_WIDTH, top + boxHeight, 0xC0000000);
+        int y = top + (boxHeight - steamify$notice.size() * LINE_HEIGHT) / 2 + 1;
         for (FormattedCharSequence line : steamify$notice) {
             graphics.text(font, line, left + GAP, y, 0xFFFFFFFF);
             y += LINE_HEIGHT;
         }
+        steamify$ok.setPosition(left + BOX_WIDTH - GAP - OK_WIDTH, top + (boxHeight - 20) / 2);
+        steamify$ok.extractRenderState(graphics, mouseX, mouseY, a);
     }
 
-    // The notice's Ok button is a widget, so this already lands below the notice while it's up
     @Unique
-    private void steamify$drawSteamWarning(GuiGraphicsExtractor graphics) {
+    private void steamify$drawSteamWarning(GuiGraphicsExtractor graphics, int top) {
         int half = Math.max(font.width(STEAM_WARNING), font.width(STEAM_WARNING_FIX)) / 2 + GAP;
-        int noticeBottom = steamify$notice != null ? steamify$noticeTop + steamify$noticeHeight : 0;
-        int top = Math.max(steamify$bottom(), noticeBottom) + GAP;
-        graphics.fill(width / 2 - half, top, width / 2 + half, top + 26, 0xE0B00000);
+        graphics.fill(width / 2 - half, top, width / 2 + half, top + WARNING_HEIGHT, 0xE0B00000);
         graphics.centeredText(font, STEAM_WARNING, width / 2, top + 4, 0xFFFFFFFF);
         graphics.centeredText(font, STEAM_WARNING_FIX, width / 2, top + 15, 0xFFFFFFFF);
     }

@@ -51,6 +51,7 @@ object Bindings {
     // go on the end
     const val L_PAD_TOUCH = RT + 1
     const val R_PAD_TOUCH = RT + 2
+    const val R_STICK_TOUCH = SDL_GAMEPAD_BUTTON_MISC4
     /** Per stick and pad: up, down, left, right (each give or take 45 degrees), then OUTER (any way). */
     const val EDGES = RT + 3
     /** Per pad: up, down, left, right. One press per swipe step. */
@@ -146,16 +147,17 @@ object Bindings {
         "key.steamify.debug_overlay" to listOf(Press(listOf(SDL_GAMEPAD_BUTTON_GUIDE), Gesture.RELEASE)),
         // Unbind it in an action set to free the left pad for other binds
         "key.steamify.hotbar_pad" to each(L_PAD_TOUCH),
-        // Steam's default. Unbound, gyro is always on
-        "key.steamify.gyro" to each(R_PAD_TOUCH),
+        // Unbound, gyro is always on
+        "key.steamify.gyro" to each(R_PAD_TOUCH, R_STICK_TOUCH),
     )
 
     private val names = arrayOf(
         // Stick clicks are L3/R3 like in Steam: in Minecraft's font "LS" reads as L5, a back button
         "A", "B", "X", "Y", "View", "Steam", "Menu", "L3", "R3", "LB", "RB",
         "D-Up", "D-Down", "D-Left", "D-Right", "QAM", "R4", "L4", "R5", "L5",
-        // Touch sensors in the order MC's bundled SDL reports them for the Steam Controller (2026)
-        "L Pad", "R Pad", "R Stick Touch", "L Stick Touch", "R Grip", "L Grip", "LT", "RT",
+        // Touch sensors in the order SDL's gamepad mapping puts them for the Steam Controller (2026) and Deck: misc3 is
+        // the left stick, misc5 the left grip. Its driver's own button list has them the other way round
+        "L Pad", "R Pad", "L Stick Touch", "R Stick Touch", "L Grip", "R Grip", "LT", "RT",
         "L Pad Touch", "R Pad Touch",
     ) + listOf("L Stick", "R Stick", "L Pad", "R Pad").flatMap { s -> listOf("Up", "Down", "Left", "Right", "Edge").map { "$s $it" } } +
         listOf("L Pad", "R Pad").flatMap { s -> listOf("Up", "Down", "Left", "Right").map { "$s Swipe $it" } } +

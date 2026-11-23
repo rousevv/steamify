@@ -1147,7 +1147,6 @@ object Steamify : ClientModInitializer {
     private var flickEnded = 0L
     // Turning around the edge, deg/s: slow wobble from the stick's own noise is averaged out, real turns pass straight
     private val flickSmooth = Smoother(tightenBelow = { 0.0 }, smoothBelow = 30.0, rawAbove = 120.0, smoothSeconds = 0.05)
-    private const val R_STICK_TOUCH = SDL_GAMEPAD_BUTTON_MISC3
 
     private fun flick(dt: Double, free: Boolean): Double {
         if (!Settings[Flag.FLICK_STICK] || !free) {
@@ -1222,14 +1221,19 @@ object Steamify : ClientModInitializer {
 
     /**
      * The gyro bind held, raw so a thumb kept on the pad through a menu still aims straight after. Any gesture counts
-     * as plain holding. Nothing pressable bound (unbound, or the right pad on a controller without one): always on.
+     * as plain holding. Nothing bound that this controller has (unbound, or only pads and touch sensors it lacks):
+     * always on.
      */
     private fun gyroHeld(): Boolean {
-        val pressable = Bindings.effective(Bindings.gyro).filter { p -> hasRightPad || Bindings.R_PAD_TOUCH !in p.combo }
+        val pressable = Bindings.effective(Bindings.gyro).filter { p -> p.combo.all(::exists) }
         if (pressable.isEmpty()) return controllerInHand()
-        // Flick Stick keeps the right thumb on the stick, so resting it there counts as on the pad
-        if (Settings[Flag.FLICK_STICK] && (flickOn || held[R_STICK_TOUCH]) && pressable.any { Bindings.R_PAD_TOUCH in it.combo }) return true
         return pressable.any { p -> p.combo.all { held[it] } }
+    }
+
+    private fun exists(input: Int) = when {
+        input == Bindings.R_PAD_TOUCH -> hasRightPad
+        input < SDL_GAMEPAD_BUTTON_COUNT -> SDL_GamepadHasButton(pad, input)
+        else -> true
     }
 
     /** Whether to show controller buttons in prompts: it's being held, or was just used. */
